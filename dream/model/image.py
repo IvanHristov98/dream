@@ -43,12 +43,3 @@ class Image(NamedTuple):
     id: ImageID
     label: str
     mat: np.ndarray
-
-
-class ImageFeatures(NamedTuple):
-    """
-    ImageFeatures represents the features of an image.
-    """
-
-    id: ImageID
-    features: List[np.ndarray]
