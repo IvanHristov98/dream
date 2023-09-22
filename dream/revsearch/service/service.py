@@ -127,7 +127,7 @@ class VocabularyTree:
 
         for label in feature_groups.keys():
             child = rsmodel.Node(rsmodel.NodeID(uuid.UUID()), children=set(), vec=kmeans.cluster_centers_[label])
-            node.children.add(child)
+            node.children.add(child.id)
 
             self._train_recursively(feature_groups[label], child, level=level + 1)
 

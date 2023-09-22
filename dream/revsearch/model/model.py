@@ -35,6 +35,7 @@ class NodeID(NamedTuple):
 class Node(NamedTuple):
     id: NodeID
     children: Set[NodeID]
+    # The coordinates of the node.
     vec: np.ndarray
     # Only leaf nodes have features.
     features: List[Feature]
