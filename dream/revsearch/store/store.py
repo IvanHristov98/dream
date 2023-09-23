@@ -1,13 +1,13 @@
-from typing import Callable
+from typing import Callable, List
 import json
 
 import psycopg_pool
 import psycopg
 import numpy as np
 
-import dream.revsearch.service as service
+from dream.revsearch import service
 import dream.revsearch.model as rsmodel
-import dream.model as model
+from dream import model
 
 
 class Store(service.Store):
@@ -43,6 +43,9 @@ class TxStore(service.TxStore):
 
         self._cur = cur
 
+    def remove_all_nodes(self) -> None:
+        self._cur.execute("DELETE FROM node;")
+
     def store_node(self, node: rsmodel.Node) -> None:
         child_uuids = [None] * len(node.children)
 
@@ -54,8 +57,8 @@ class TxStore(service.TxStore):
         features = json.dumps(node.features, cls=NumpyArrayEncoder)
 
         self._cur.execute(
-            "INSERT INTO node (id, children, vec, features) VALUES (%s, %s, %s, %s);",
-            (node.id.id, encoded_child_uuids, encoded_vec, features),
+            "INSERT INTO node (id, is_root, children, vec, features) VALUES (%s, %s, %s, %s, %s);",
+            (node.id.id, node.is_root, encoded_child_uuids, encoded_vec, features),
         )
 
     def find_node(self, node_id: rsmodel.NodeID) -> rsmodel.Node:
@@ -69,3 +72,20 @@ class TxStore(service.TxStore):
 
     def find_image_metadata(self, im_id: model.ImageID) -> model.Image:
         raise NotImplementedError("")
+
+    def load_training_images(self) -> List[model.Image]:
+        """
+        load_training_images currently loads the metadata of all images from the db.
+        Consider loading a subset if loading too many images becomes a problem.
+        """
+        self._cur.execute("SELECT id, label FROM image_metadata;")
+        ims = []
+
+        for row in self._cur.fetchall():
+            im = model.Image(
+                id=model.ImageID(row[0]),
+                label=row[1],
+            )
+            ims.append(im)
+
+        return ims

@@ -3,7 +3,7 @@ Module service wraps the reverse search use cases according to clean architectur
 """
 import abc
 import uuid
-from typing import List, Callable, Dict, Tuple
+from typing import List, Callable, Dict
 
 import sklearn.cluster as skcluster
 import numpy as np
@@ -13,6 +13,9 @@ from dream import model
 
 
 class TxStore(abc.ABC):
+    def remove_all_nodes(self) -> None:
+        raise NotImplementedError("")
+
     def store_node(self, _: rsmodel.Node) -> None:
         raise NotImplementedError("")
 
@@ -23,6 +26,9 @@ class TxStore(abc.ABC):
         raise NotImplementedError("")
 
     def find_image_metadata(self, _: model.ImageID) -> model.Image:
+        raise NotImplementedError("")
+
+    def load_training_images(self) -> List[model.Image]:
         raise NotImplementedError("")
 
 
@@ -47,14 +53,6 @@ class FeatureExtractor(abc.ABC):
         raise NotImplementedError("")
 
 
-class DataIterator(abc.ABC):
-    def next(self) -> bool:
-        raise NotImplementedError("")
-
-    def read(self) -> model.Image:
-        raise NotImplementedError("")
-
-
 class VocabularyTree:
     """
     VocabularyTree implements use cases for reverse search of images.
@@ -67,53 +65,50 @@ class VocabularyTree:
     _store: Store
     _im_store: ImageStore
     _feature_extractor: FeatureExtractor
-    _data_iter: DataIterator
 
     def __init__(
         self,
         store: Store,
         im_store: ImageStore,
         feature_extractor: FeatureExtractor,
-        data_iter: DataIterator,
     ) -> None:
         self._store = store
         self._im_store = im_store
         self._feature_extractor = feature_extractor
-        self._data_iter = data_iter
 
     def train(self) -> None:
-        (features, ims) = self._get_all_features()
-
-        feature_dim = self._feature_extractor.dim()
-        root = rsmodel.Node(
-            id=uuid.UUID(),
-            children=set(),
-            vec=np.zeros((feature_dim,), dtype=np.float32),
-        )
-        self._train_recursively(features, root)
-
-        # Storing im matrices first because writing files is an idempotent operation by nature.
-        self._store_ims(ims)
-
+        """
+        train loads a subset of all images in the db, trains a vocabulary tree and stores it in the db.
+        It might not associate all images with the tree.
+        """
         def _cb(tx_store: TxStore) -> None:
+            features = self._get_all_features(tx_store)
+
+            feature_dim = self._feature_extractor.dim()
+            root = rsmodel.Node(
+                id=uuid.UUID(),
+                children=set(),
+                vec=np.zeros((feature_dim,), dtype=np.float32),
+            )
+            self._train_recursively(features, root)
+
             self._store_tree(tx_store, root)
-            self._store_ims_metadata(tx_store, ims)
+            print(f"Added tree with root `{str(root.id)}` and removed all old nodes")
 
         self._store.atomically(_cb)
 
     # TODO: Returning model.Image might consume a lot of memory. Think of a more memory-effective solution.
-    def _get_all_features(self) -> Tuple[List[rsmodel.Feature], List[model.Image]]:
+    def _get_all_features(self, tx_store: TxStore) -> List[rsmodel.Feature]:
+        training_ims = tx_store.load_training_images()
         features = []
-        ims = []
 
-        while self._data_iter.next():
-            im = self._data_iter.read()
-            ims.append(im)
+        for training_im in training_ims:
+            loaded_im = self._im_store.load_matrix(training_im)
 
-            im_features = self._feature_extractor.features(im)
+            im_features = self._feature_extractor.features(loaded_im)
             features += im_features
 
-        return (features, ims)
+        return features
 
     def _train_recursively(self, features: List[rsmodel.Feature], node: rsmodel.Node, level: int = 1) -> None:
         if level == self._NUM_LEVELS:
@@ -159,6 +154,8 @@ class VocabularyTree:
             self._im_store.store_matrix(im)
 
     def _store_tree(self, tx_store: TxStore, root: rsmodel.Node) -> None:
+        tx_store.remove_all_nodes()
+
         q: List[rsmodel.Node] = []
         q.append(root)
 

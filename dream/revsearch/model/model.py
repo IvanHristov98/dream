@@ -34,6 +34,7 @@ class NodeID(NamedTuple):
 
 class Node(NamedTuple):
     id: NodeID
+    is_root: bool
     children: Set[NodeID]
     # The coordinates of the node.
     vec: np.ndarray

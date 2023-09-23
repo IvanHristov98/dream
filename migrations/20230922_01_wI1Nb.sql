@@ -3,6 +3,7 @@
 
 CREATE TABLE node (
 	id UUID PRIMARY KEY,
+	is_root BOOLEAN NOT NULL,
 	children JSONB NOT NULL,
 	vec BYTEA NOT NULL,
 	features JSONB NOT NULL
