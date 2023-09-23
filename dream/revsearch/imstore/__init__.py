@@ -1,1 +1,1 @@
-from dream.revsearch.imstore.imstore import ImageStore # noqa
+from dream.revsearch.imstore.imstore import ImageStore  # noqa

@@ -81,6 +81,7 @@ class VocabularyTree:
         train loads a subset of all images in the db, trains a vocabulary tree and stores it in the db.
         It might not associate all images with the tree.
         """
+
         def _cb(tx_store: TxStore) -> None:
             features = self._get_all_features(tx_store)
 
