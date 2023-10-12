@@ -3,6 +3,5 @@ from dream.revsearch.service.service import (
     TxStore,
     ImageStore,
     FeatureExtractor,
-    DataIterator,
     VocabularyTree,
 )

@@ -76,6 +76,17 @@ class VocabularyTree:
         self._im_store = im_store
         self._feature_extractor = feature_extractor
 
+    def seed_image(self, im: model.Image) -> None:
+        self._im_store.store_matrix(im)
+
+        # The code logic should always first search for image metadata in the db and then read the matrix.
+        # Hence it is necessary to first write the matrix and then the metadata because they are operations
+        # to different IO destinations.
+        def _cb(tx_store: TxStore) -> None:
+            tx_store.store_image_metadata(im)
+
+        self._store.atomically(_cb)
+
     def train(self) -> None:
         """
         train loads a subset of all images in the db, trains a vocabulary tree and stores it in the db.
@@ -170,11 +181,11 @@ class VocabularyTree:
         for im in ims:
             tx_store.store_image_metadata(im)
 
-    def find_similar(self, _: model.ImageFeatures) -> List[model.ImageID]:
-        """
-        find_similar finds images with features similar to the ones of the input image.
-        """
-        return None
+    # def find_similar(self, _: rsmodel.Feature) -> List[model.ImageID]:
+    #     """
+    #     find_similar finds images with features similar to the ones of the input image.
+    #     """
+    #     return None
 
     def find_image(self, _: model.ImageID) -> model.Image:
         """

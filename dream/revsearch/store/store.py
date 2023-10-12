@@ -65,9 +65,11 @@ class TxStore(service.TxStore):
         raise NotImplementedError("")
 
     def store_image_metadata(self, im: model.Image) -> None:
+        persisted_labels = json.dumps(im.labels)
+
         self._cur.execute(
-            "INSERT INTO image_metadata (id, label) VALUES(%s, %s);",
-            (im.id.id, im.label),
+            "INSERT INTO image_metadata (id, labels, dataset) VALUES(%s, %s, %s);",
+            (im.id.id, persisted_labels, im.dataset),
         )
 
     def find_image_metadata(self, im_id: model.ImageID) -> model.Image:
@@ -78,14 +80,13 @@ class TxStore(service.TxStore):
         load_training_images currently loads the metadata of all images from the db.
         Consider loading a subset if loading too many images becomes a problem.
         """
-        self._cur.execute("SELECT id, label FROM image_metadata;")
+        self._cur.execute("SELECT id, label, dataset FROM image_metadata;")
         ims = []
 
         for row in self._cur.fetchall():
-            im = model.Image(
-                id=model.ImageID(row[0]),
-                label=row[1],
-            )
+            labels = json.loads(row[1])
+
+            im = model.Image().with_id(model.ImageID(row[0])).with_dataset(row[2]).with_labels(labels)
             ims.append(im)
 
         return ims
