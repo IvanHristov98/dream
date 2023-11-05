@@ -1,5 +1,6 @@
 # dream
-Trying to find motivation to program :smile:.
+
+A semantic image searcher.
 
 ```bash
 # For psycopg2
