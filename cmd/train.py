@@ -1,40 +1,36 @@
 import argparse
-from pathlib import Path
 
 import dream.revsearch.store as revsearchstore
-import dream.revsearch.service as revsearchservice
 import dream.revsearch.imstore as revsearchimstore
 from dream.revsearch import featureextractor
-from dream.controller import seed
-from dream import dataset
+import dream.revsearch.service as revsearchservice
 from dream import logging as dreamlogging
 from dream import db as dreamdb
+from dream.controller import train
 
 
 def main() -> None:
     dreamlogging.configure_logging()
     args = _parse_args()
 
-    ds_iter = dataset.Coco2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
-
     pool = dreamdb.new_pool()
 
     store = revsearchstore.Store(pool)
     im_store = revsearchimstore.FSImageStore(args.imstore_ims_path)
     feature_extractor = featureextractor.SiftExtractor()
-
+    
     vtree = revsearchservice.VocabularyTree(store, im_store, feature_extractor)
+    cfg = train.Config(sample_size=args.sample_size)
 
-    ctl = seed.SeedController(vtree, ds_iter)
-    ctl.run()
+    controller = train.TrainController(cfg, vtree)
+    controller.run()
 
 
 def _parse_args() -> argparse.Namespace:
     # Only coco is supported as of now. This is due to change.
     parser = argparse.ArgumentParser()
-    parser.add_argument("-coco2014-captions-path", help="Path to the COCO2014 captions file.", required=True, type=str)
-    parser.add_argument("-coco2014-ims-path", help="Path to the COCO2014 images directory.", required=True, type=str)
     parser.add_argument("-imstore-ims-path", help="Path where to store the seeded images.", required=True, type=str)
+    parser.add_argument("-sample-size", help="Approx. num of images in the training sample.", required=True, type=int)
 
     return parser.parse_args()
 

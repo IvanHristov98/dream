@@ -23,7 +23,13 @@ class SiftExtractor(service.FeatureExtractor):
 
         (_, descriptor) = self._sift.detectAndCompute(mat_gray, None)
 
-        return list(descriptor)
+        vecs = list(descriptor)
+        features = [None] * len(vecs)
+
+        for i in range(len(vecs)):
+            features[i] = rsmodel.Feature(vec=vecs[i], im_id=im.id)
+
+        return features
 
     def dim(self) -> int:
         return _SIFT_DESCRIPTOR_DIM

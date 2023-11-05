@@ -32,7 +32,7 @@ class NodeID(NamedTuple):
         return str(self.id)
 
 
-class Node(NamedTuple):
+class Node:
     id: NodeID
     is_root: bool
     children: Set[NodeID]
@@ -40,3 +40,13 @@ class Node(NamedTuple):
     vec: np.ndarray
     # Only leaf nodes have features.
     features: List[Feature]
+
+    def __init__(self, id: NodeID, vec: np.ndarray, is_root: bool = False) -> None:
+        self.id = id
+        self.vec = vec
+        self.children = set()
+        self.features = list()
+        self.is_root = is_root
+
+    def add_child(self, child_id: NodeID) -> None:
+        self.children.add(child_id)

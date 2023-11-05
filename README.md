@@ -15,4 +15,5 @@ To seed the db with a dataset:
 export PYTHONPATH="${PYTHONPATH}:${PWD}"
 export DB_CONN_INFO="host=localhost port=5432 dbname=dream user=dream password=devpass"
 
+python3 cmd/seed.py  -coco2014-captions-path="${PWD}/data/coco2014/captions_train2014.json" -coco2014-ims-path="${PWD}/data/coco2014/train2014" -imstore-ims-path="${PWD}/tmp/imstore"
 ```

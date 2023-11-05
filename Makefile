@@ -22,4 +22,13 @@ lint:
 
 .PHONY: fmt
 fmt:
-	@black . -l 120
+	@black ./dream -l 120
+	@black ./cmd -l 120
+
+clean-imstore:
+	$(call clean_dir_except_file,${PWD}/tmp/imstore,.gitignore)
+
+define clean_dir_except_file
+	@echo "Cleaning $(1) except $(2)..."
+	@find "$(1)" -mindepth 1 | grep -v "$(2)" | xargs -I {} rm {}
+endef

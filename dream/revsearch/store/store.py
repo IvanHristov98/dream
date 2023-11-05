@@ -1,5 +1,7 @@
-from typing import Callable, List
+from typing import Any, Callable, List
 import json
+import logging
+import uuid
 
 import psycopg_pool
 import psycopg
@@ -26,11 +28,15 @@ class Store(service.Store):
             cb(tx_store)
 
 
-# See https://pynative.com/python-serialize-numpy-ndarray-into-json/.
-class NumpyArrayEncoder(json.JSONEncoder):
-    def default(self, obj):
+# See https://pynative.com/python-serialize-numpy-ndarray-into-json/
+# and https://stackoverflow.com/a/48159596
+class JSONEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        
+        if isinstance(obj, uuid.UUID):
+            return obj.hex
 
         return json.JSONEncoder.default(self, obj)
 
@@ -47,18 +53,15 @@ class TxStore(service.TxStore):
         self._cur.execute("DELETE FROM node;")
 
     def store_node(self, node: rsmodel.Node) -> None:
-        child_uuids = [None] * len(node.children)
+        child_uuids = list(node.children)
+        encoded_child_uuids = json.dumps(child_uuids, cls=JSONEncoder)
 
-        for i in range(len(node.children)):
-            child_uuids[i] = node.children[i]
-
-        encoded_child_uuids = json.dumps(child_uuids, cls=NumpyArrayEncoder)
-        encoded_vec = json.dumps(node.vec, cls=NumpyArrayEncoder)
-        features = json.dumps(node.features, cls=NumpyArrayEncoder)
+        encoded_vec = json.dumps(node.vec, cls=JSONEncoder)
+        encoded_features = json.dumps(node.features, cls=JSONEncoder)
 
         self._cur.execute(
             "INSERT INTO node (id, is_root, children, vec, features) VALUES (%s, %s, %s, %s, %s);",
-            (node.id.id, node.is_root, encoded_child_uuids, encoded_vec, features),
+            (node.id.id, node.is_root, encoded_child_uuids, encoded_vec, encoded_features),
         )
 
     def find_node(self, node_id: rsmodel.NodeID) -> rsmodel.Node:
@@ -75,16 +78,32 @@ class TxStore(service.TxStore):
     def find_image_metadata(self, im_id: model.ImageID) -> model.Image:
         raise NotImplementedError("")
 
-    def load_training_images(self) -> List[model.Image]:
+    def load_training_images(self, sample_size: int) -> List[model.Image]:
         """
         load_training_images currently loads the metadata of all images from the db.
         Consider loading a subset if loading too many images becomes a problem.
         """
-        self._cur.execute("SELECT id, label, dataset FROM image_metadata;")
+        self._cur.execute("SELECT COUNT(*) FROM image_metadata;")
+        row = self._cur.fetchone()
+        count = row[0]
+
+        if count < sample_size:
+            logging.warn(
+                f"sample_size ({sample_size}) is greater than training dataset size ({count}), setting to 100%",
+            )
+            sample_size = count
+
+        if sample_size / count < 1:
+            logging.warn(f"sample_size must be >= 1% of the total number of images, setting it to 1%")
+            sample_size = count / 100 + 1
+
+        self._cur.execute(
+            f"SELECT id, labels, dataset FROM image_metadata TABLESAMPLE BERNOULLI (({sample_size}*100/{count}));",
+        )
         ims = []
 
         for row in self._cur.fetchall():
-            labels = json.loads(row[1])
+            labels = row[1]
 
             im = model.Image().with_id(model.ImageID(row[0])).with_dataset(row[2]).with_labels(labels)
             ims.append(im)
