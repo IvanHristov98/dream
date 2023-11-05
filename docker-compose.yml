@@ -1,0 +1,33 @@
+version: "3"
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    volumes:
+      - ./migrations:/migrations
+      - ./yoyo.ini:/yoyo.ini
+    entrypoint: ["yoyo", "apply", "-d", "postgresql://dream:devpass@postgres:5432/dream", "-b", "-c", "yoyo.ini"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15.2
+    environment:
+      POSTGRES_USER: dream
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: dream
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dream"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+
+volumes:
+  pg_data:
+    name: dream_pg_data

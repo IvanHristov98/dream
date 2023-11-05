@@ -6,5 +6,4 @@ from dream.model.image import (
     NoImageID,  # noqa
     new_image_id,  # noqa
     Image,  # noqa
-    ImageFeatures,  # noqa
 )

@@ -35,20 +35,43 @@ def new_image_id() -> ImageID:
     return ImageID(uuid.uuid4())
 
 
-class Image(NamedTuple):
+class Image:
     """
     Image represents an image with its ID, description and matrix.
     """
 
     id: ImageID
-    label: str
+    labels: List[str]
     mat: np.ndarray
+    dataset: str
 
+    def __init__(self) -> None:
+        self.labels = []
 
-class ImageFeatures(NamedTuple):
-    """
-    ImageFeatures represents the features of an image.
-    """
+    def with_id(self, id: ImageID) -> "Image":
+        self.id = id
+        return self
 
-    id: ImageID
-    features: List[np.ndarray]
+    def with_mat(self, mat: np.ndarray) -> "Image":
+        self.mat = mat
+        return self
+
+    def with_dataset(self, dataset: np.ndarray) -> "Image":
+        self.dataset = dataset
+        return self
+
+    def with_labels(self, labels: List[str]) -> "Image":
+        """
+        with_labels removes all current labels on the model and copies the provided ones as the new labels.
+        It should be used only for construction.
+        """
+
+        self.labels = []
+
+        for label in labels:
+            self.labels.append(label)
+
+        return self
+
+    def add_label(self, label: str) -> None:
+        self.labels.append(label)
