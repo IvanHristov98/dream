@@ -3,7 +3,7 @@ Module service wraps the reverse search use cases according to clean architectur
 """
 import abc
 import uuid
-from typing import List, Callable, Dict
+from typing import List, Callable, Dict, Set, Optional
 
 import sklearn.cluster as skcluster
 import numpy as np
@@ -13,11 +13,26 @@ import dream.revsearch.model as rsmodel
 from dream import model
 
 
+class GreenTreeExistsError(Exception):
+    """
+    Thrown whenever a training attempt is made while another is in progress.
+    """
+
+
 class TxStore(abc.ABC):
+    def add_tree(self, voc_tree: rsmodel.VocabularyTree) -> None:
+        raise NotImplementedError("")
+
+    def next_node_added_event(self) -> Optional[rsmodel.NodeAdded]:
+        raise NotImplementedError("")
+
+    def remove_node_added_event(self, _: uuid.UUID) -> None:
+        raise NotImplementedError("")
+
     def remove_all_nodes(self) -> None:
         raise NotImplementedError("")
 
-    def store_node(self, _: rsmodel.Node) -> None:
+    def add_node(self, _: rsmodel.Node) -> None:
         raise NotImplementedError("")
 
     def find_node(self, _: rsmodel.NodeID) -> rsmodel.Node:
@@ -54,9 +69,18 @@ class FeatureExtractor(abc.ABC):
         raise NotImplementedError("")
 
 
-class VocabularyTree:
+class featureGroup:
+    features: List[rsmodel.Feature]
+    im_ids: Set[model.ImageID]
+
+    def __init__(self) -> None:
+        self.features = []
+        self.ims = set([])
+
+
+class Service:
     """
-    VocabularyTree implements use cases for reverse search of images.
+    Service implements a vocabulary tree based index over embeddings.
     """
 
     # Value is taken from paper.
@@ -91,16 +115,42 @@ class VocabularyTree:
 
     def train(self, sample_size: int) -> None:
         """
+        train loads a subset of all image IDs in the db, creates a root node for a vtree and stores a node added
+        event to be eventually consumed.
+        It might not associate all images with the tree.
+        If there are more than 2 trees it fails (one green and one blue).
+        """
+
+        def _cb(tx_store: TxStore) -> None:
+            tx_store.add_tree
+            pass
+
+        self._store.atomically(_cb)
+
+    def try_node_added(self) -> None:
+        """
+        try_node_added tries to find a new node_added event
+        """
+
+    def train_old(self, sample_size: int) -> None:
+        """
         train loads a subset of all images in the db, trains a vocabulary tree and stores it in the db.
         It might not associate all images with the tree.
         """
 
+        # consider long running transaction as an anti-pattern
         def _cb(tx_store: TxStore) -> None:
-            features = self._get_training_features(tx_store, sample_size)
+            training_ims = tx_store.load_training_images(sample_size)
+            features = self._get_training_features(training_ims)
 
             feature_dim = self._feature_extractor.dim()
             root_id = self._root_id()
-            root = rsmodel.Node(id=root_id, vec=np.zeros((feature_dim,), dtype=np.float32), is_root=True)
+            root = rsmodel.Node(
+                id=root_id,
+                vec=np.zeros((feature_dim,), dtype=np.float32),
+                im_count=len(training_ims),
+                is_root=True,
+            )
 
             nodes: Dict[rsmodel.NodeID, rsmodel.Node] = dict()
             nodes[root.id] = root
@@ -115,8 +165,7 @@ class VocabularyTree:
     def _root_id(self) -> rsmodel.NodeID:
         return rsmodel.NodeID(id=uuid.UUID(int=0))
 
-    def _get_training_features(self, tx_store: TxStore, sample_size: int) -> List[rsmodel.Feature]:
-        training_ims = tx_store.load_training_images(sample_size)
+    def _get_training_features(self, training_ims: List[model.Image]) -> List[rsmodel.Feature]:
         features = []
 
         with tqdm(total=len(training_ims), desc="loading training ims") as pbar:
@@ -130,12 +179,12 @@ class VocabularyTree:
         return features
 
     def _train_recursively(
-            self, 
-            features: List[rsmodel.Feature], 
-            node: rsmodel.Node, 
-            nodes: Dict[rsmodel.NodeID, rsmodel.Node], 
-            level: int = 1,
-        ) -> None:
+        self,
+        features: List[rsmodel.Feature],
+        node: rsmodel.Node,
+        nodes: Dict[rsmodel.NodeID, rsmodel.Node],
+        level: int = 1,
+    ) -> None:
         if level == self._NUM_LEVELS:
             node.features = features
             return
@@ -157,22 +206,25 @@ class VocabularyTree:
         vecs = [None] * len(features)
 
         for i in range(0, len(features)):
-            vecs[i] = features[i].vec                
+            vecs[i] = features[i].vec
 
         return vecs
 
-    def _group_features(
-        self, features: List[rsmodel.Feature], kmeans: skcluster.KMeans
-    ) -> Dict[int, List[rsmodel.Feature]]:
-        groups: Dict[int, List[rsmodel.Feature]] = dict()
+    def _group_features(self, features: List[rsmodel.Feature], kmeans: skcluster.KMeans) -> Dict[int, featureGroup]:
+        if len(features) != len(kmeans.labels_):
+            # This error should not be encountered.
+            raise RuntimeError("the number of features should be equal to the number of labels")
+
+        groups: Dict[int, featureGroup] = dict()
 
         for i in range(0, len(kmeans.labels_)):
             label = kmeans.labels_[i]
 
             if label not in groups:
-                groups[label] = []
+                groups[label] = featureGroup()
 
-            groups[label].append(features[i])
+            groups[label].features.append(features[i])
+            groups[label].im_ids.add(features[i].im_id)
 
         return groups
 
