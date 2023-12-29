@@ -34,7 +34,7 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, np.ndarray):
             return obj.tolist()
-        
+
         if isinstance(obj, uuid.UUID):
             return obj.hex
 
@@ -81,7 +81,6 @@ class TxStore(service.TxStore):
     def load_training_images(self, sample_size: int) -> List[model.Image]:
         """
         load_training_images currently loads the metadata of all images from the db.
-        Consider loading a subset if loading too many images becomes a problem.
         """
         self._cur.execute("SELECT COUNT(*) FROM image_metadata;")
         row = self._cur.fetchone()

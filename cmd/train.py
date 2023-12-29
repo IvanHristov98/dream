@@ -18,7 +18,7 @@ def main() -> None:
     store = revsearchstore.Store(pool)
     im_store = revsearchimstore.FSImageStore(args.imstore_ims_path)
     feature_extractor = featureextractor.SiftExtractor()
-    
+
     vtree = revsearchservice.VocabularyTree(store, im_store, feature_extractor)
     cfg = train.Config(sample_size=args.sample_size)
 

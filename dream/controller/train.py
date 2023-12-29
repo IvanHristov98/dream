@@ -18,4 +18,3 @@ class TrainController:
 
     def run(self) -> None:
         self._vtree.train(self._cfg.sample_size)
-        
