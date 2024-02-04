@@ -1,28 +1,29 @@
 -- 
 -- depends:
 
-CREATE TABLE IF NOT EXISTS node (
-	id UUID  PRIMARY KEY,
+-- Captions
+
+CREATE TABLE IF NOT EXISTS caption_voc_tree_node (
+	id       UUID  PRIMARY KEY,
 	tree_id  UUID NOT NULL,
 	depth    INT NOT NULL,
 	vec      BYTEA NOT NULL,
-	im_count INT NOT NULL,
 	children JSONB NOT NULL,
-	features JSONB NOT NULL,
+	features JSONB NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS node_tree_id_depth_idx ON node (tree_id, depth);
+-- used to retrieve roots.
+CREATE INDEX IF NOT EXISTS caption_voc_tree_node_tree_id_depth_idx ON caption_voc_tree_node (tree_id, depth);
 
-CREATE TABLE IF NOT EXISTS node_added_event (
+CREATE TABLE IF NOT EXISTS caption_node_added_event (
 	id         UUID PRIMARY KEY,
 	node_id    UUID NOT NULL,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-	CONSTRAINT fk_node_id FOREIGN KEY (node) REFERENCES node(id)
+	CONSTRAINT fk_node_id FOREIGN KEY (node_id) REFERENCES caption_voc_tree_node(id)
 );
 
 CREATE TABLE IF NOT EXISTS caption_tf (
-	-- term_id is a node in the tree.
+	-- term_id is the id of a node in the vocabulary tree.
 	term_id UUID NOT NULL,
 	-- doc_id is a document in the vocabulary tree.
 	doc_id UUID NOT NULL,
@@ -38,11 +39,13 @@ CREATE TABLE IF NOT EXISTS caption_df (
 	docs_count        INT NOT NULL,
 );
 
-CREATE TABLE IF NOT EXISTS doc_counts (
-	tree_id UUID NOT NULL,
+CREATE TABLE IF NOT EXISTS caption_voc_tree_doc_count (
+	tree_id UUID PRIMARY KEY,
 	-- doc_count is the number of documents in a given vocabulary tree.
 	doc_count INT NOT NULL,
 );
+
+-- everything afterwards may be dropped...
 
 CREATE TABLE IF NOT EXISTS image_metadata (
 	id      UUID PRIMARY KEY,

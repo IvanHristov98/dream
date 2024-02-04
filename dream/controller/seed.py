@@ -1,4 +1,4 @@
-import dream.revsearch.service as revsearch
+import dream.voctree.service as revsearch
 from dream import dataset
 
 from tqdm import tqdm

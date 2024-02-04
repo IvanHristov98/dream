@@ -1,14 +1,14 @@
 import argparse
 from pathlib import Path
 
-import dream.revsearch.store as revsearchstore
-import dream.revsearch.service as revsearchservice
-import dream.revsearch.imstore as revsearchimstore
-from dream.revsearch import featureextractor
+import dream.voctree.store as revsearchstore
+import dream.voctree.service as revsearchservice
+import dream.voctree.imstore as revsearchimstore
+from dream.voctree import featureextractor
 from dream.controller import seed
 from dream import dataset
 from dream import logging as dreamlogging
-from dream import db as dreamdb
+from dream import pg as dreamdb
 
 
 def main() -> None:

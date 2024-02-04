@@ -4,7 +4,7 @@ from typing import Set, List, NamedTuple
 import numpy as np
 
 
-class Document(NamedTuple):
+class Document:
     """
     Document may be any entity that can be semantically represented with a set descriptor vectors.
     Examples are images, sentences, etc.
@@ -13,10 +13,20 @@ class Document(NamedTuple):
     id: uuid.UUID
     vectors: List[np.ndarray]
 
+    def __init__(self, id: uuid.UUID, vectors: List[np.ndarray]) -> None:
+        self.id = id
+        self.vectors = vectors
+
 
 class Feature(NamedTuple):
     doc_id: uuid.UUID
     vec: np.ndarray
+
+    def __eq__(self, other: object) -> bool:
+        if self.doc_id != other.doc_id:
+            return False
+
+        return np.allclose(self.vec, other.vec)
 
 
 class Node:
@@ -43,7 +53,23 @@ class Node:
         self.children = set()
         self.features = list()
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Node):
+            return False
 
-class NodeAdded:
+        if self.id != other.id or self.tree_id != other.tree_id or self.depth != other.depth:
+            return False
+
+        if not np.allclose(self.vec, other.vec):
+            return False
+
+        return self.children == other.children and self.features == other.features
+
+
+class TrainJob:
     id: uuid.UUID
-    node: Node
+    added_node: Node
+
+    def __init__(self, id: uuid.UUID, added_node: Node) -> None:
+        self.id = id
+        self.added_node = added_node

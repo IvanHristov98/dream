@@ -6,7 +6,7 @@ import math
 import sklearn.cluster as skcluster
 import numpy as np
 
-import dream.revsearch.model as rsmodel
+import dream.voctree.model as vtmodel
 
 
 class ErrNodeNotFound(Exception):
@@ -16,45 +16,51 @@ class ErrNodeNotFound(Exception):
 
 
 class DocStore(abc.ABC):
-    def get_documents(self, tx: any, sample_size: int) -> List[rsmodel.Document]:
+    def get_documents(self, tx: any, sample_size: int) -> List[vtmodel.Document]:
         raise NotImplementedError("")
 
     def get_feature_dim(self) -> int:
         raise NotImplementedError("")
 
 
-class TreeStore(abc.ABC):
-    def add_node(self, tx: any, node: rsmodel.Node) -> None:
+class VocabularyTreeStore(abc.ABC):
+    def add_node(self, tx: any, node: vtmodel.Node) -> None:
         """
-        add_node adds a new node in the store.
-        """
-        raise NotImplementedError("")
-
-    def fetch_node_added_event(self, tx: any) -> Optional[rsmodel.NodeAdded]:
-        """
-        fetch_node_added_event fetches an arbitrary node added event.
+        add_node adds a new node.
         """
         raise NotImplementedError("")
 
-    def remove_node_added_event(self, tx: any, event: rsmodel.NodeAdded) -> None:
+    def push_train_job(self, tx: any, job: vtmodel.TrainJob) -> None:
         """
-        remove_node_added_event deletes a node added event by its ID.
+        push_train_job pushes a new train job.
         """
         raise NotImplementedError("")
 
-    def update_node(self, tx: any, node: rsmodel.Node) -> None:
+    def fetch_train_job(self, tx: any) -> Optional[vtmodel.TrainJob]:
+        """
+        fetch_train_job fetches an arbitrary training job.
+        """
+        raise NotImplementedError("")
+
+    def pop_train_job(self, tx: any, job_id: uuid.UUID) -> None:
+        """
+        pop_train_job deletes a training job by its ID.
+        """
+        raise NotImplementedError("")
+
+    def update_node(self, tx: any, node: vtmodel.Node) -> None:
         """
         update_node updates a given node.
         """
         raise NotImplementedError("")
 
-    def get_root(self, tx: any) -> Optional[rsmodel.Node]:
+    def get_root(self, tx: any) -> Optional[vtmodel.Node]:
         """
         get_root returns the root of the active vocabulary tree if any is found.
         """
         raise NotImplementedError("")
 
-    def get_node(self, tx: any, id: uuid.UUID) -> Optional[rsmodel.Node]:
+    def get_node(self, tx: any, id: uuid.UUID) -> Optional[vtmodel.Node]:
         """
         get_node returns a node by id.
         """
@@ -90,7 +96,7 @@ class FrequencyStore(abc.ABC):
         """
         raise NotImplementedError("")
 
-    def get_df(self, tx: any, term_id: uuid.UUID) -> rsmodel.DocumentFrequency:
+    def get_df(self, tx: any, term_id: uuid.UUID) -> vtmodel.DocumentFrequency:
         """
         get_df returns how many unique documents a term (node) is found in.
         """
@@ -111,8 +117,8 @@ class FrequencyStore(abc.ABC):
         raise NotImplementedError("")
 
 
-class Store(abc.ABC):
-    def atomically(self, cb: Callable[[any], None]) -> None:
+class TxStore(abc.ABC):
+    def in_tx(self, cb: Callable[[any], None]) -> None:
         raise NotImplementedError("")
 
 
@@ -126,22 +132,22 @@ class VocabularyTree:
     _NUM_CLUSTERS = 8
     _NUM_LEVELS = 4
 
-    _store: Store
+    _tx_store: TxStore
     _doc_store: DocStore
-    _tree_store: TreeStore
+    _tree_store: VocabularyTreeStore
     _freq_store: FrequencyStore
     _tf_idf_threshold: float
 
     def __init__(
         self,
-        store: Store,
+        tx_store: TxStore,
         doc_store: DocStore,
-        tree_store: TreeStore,
+        tree_store: VocabularyTreeStore,
         freq_store: FrequencyStore,
         # TODO: Fine tune tf_idf threshold.
         tf_idf_threshold: float = 0.05,
     ) -> None:
-        self._store = store
+        self._tx_store = tx_store
         self._doc_store = doc_store
         self._tree_store = tree_store
         self._freq_store = freq_store
@@ -157,13 +163,14 @@ class VocabularyTree:
         def _cb(tx: any) -> None:
             feature_dim = self._doc_store.get_feature_dim()
             root_vec = np.zeros((feature_dim,), dtype=np.float32)
-            root = rsmodel.Node(uuid.uuid4(), uuid.uuid4(), self._START_DEPTH, root_vec)
+            root = vtmodel.Node(uuid.uuid4(), uuid.uuid4(), self._START_DEPTH, root_vec)
 
             docs = self._doc_store.get_documents(tx, sample_size)
             root.features = self._docs_to_features(docs)
 
-            # TODO: What happens when more than two trees are added.
+            # TODO: What happens when more than two trees are added -> Raise exception.
             self._tree_store.add_node(tx, root)
+            self._tree_store.push_train_job(tx, vtmodel.TrainJob(id=uuid.uuid4(), added_node=root))
 
             # A term (node) is in a document if a feature of that document is in the node.
             # The term frequency for a given document is the number of features of a given
@@ -177,14 +184,14 @@ class VocabularyTree:
 
             self._freq_store.set_doc_counts(tx, root.tree_id, doc_counts=len(docs))
 
-        self._store.atomically(_cb)
+        self._tx_store.in_tx(_cb)
 
-    def _docs_to_features(self, docs: List[rsmodel.Document]) -> List[rsmodel.Feature]:
+    def _docs_to_features(self, docs: List[vtmodel.Document]) -> List[vtmodel.Feature]:
         features = []
 
         for doc in docs:
             for vec in doc.vectors:
-                feature = rsmodel.Feature(doc.id, vec)
+                feature = vtmodel.Feature(doc.id, vec)
                 features.append(feature)
 
         return features
@@ -205,24 +212,24 @@ class VocabularyTree:
         def _cb(tx: any) -> None:
             nonlocal worked
 
-            node_added = self._tree_store.fetch_node_added_event(tx)
-            if node_added is None:
+            train_job = self._tree_store.fetch_train_job(tx)
+            if train_job is None:
                 return
 
             worked = True
 
-            self._on_node_added(tx, node_added)
-            self._tree_store.remove_node_added_event(tx, node_added)
+            self._on_train_job(tx, train_job)
+            self._tree_store.pop_train_job(tx, train_job)
 
-        self._store.atomically(_cb)
+        self._tx_store.in_tx(_cb)
         return worked
 
-    def _on_node_added(self, tx: any, node_added: rsmodel.NodeAdded) -> None:
-        if node_added.node.depth == self._NUM_LEVELS:
+    def _on_train_job(self, tx: any, train_job: vtmodel.TrainJob) -> None:
+        if train_job.added_node.depth == self._NUM_LEVELS:
             # No more clustering of features is required.
             return
 
-        parent = node_added.node
+        parent = train_job.added_node
         children = self._get_children(parent)
         self._assign_children(parent, children)
 
@@ -234,7 +241,7 @@ class VocabularyTree:
 
         self._tree_store.update_node(tx, parent)
 
-    def _get_children(self, parent: rsmodel.Node) -> List[rsmodel.Node]:
+    def _get_children(self, parent: vtmodel.Node) -> List[vtmodel.Node]:
         vecs = self._get_features_vecs(parent.features)
         kmeans = skcluster.KMeans(init="k-means++", n_clusters=self._NUM_CLUSTERS, n_init="auto").fit(
             np.array(vecs),
@@ -244,20 +251,20 @@ class VocabularyTree:
             # This error should not be encountered.
             raise RuntimeError("the number of features should be equal to the number of labels")
 
-        children: Dict[int, rsmodel.Node] = dict()
+        children: Dict[int, vtmodel.Node] = dict()
 
         for i in range(len(kmeans.labels_)):
             label = kmeans.labels_[i]
 
             if label not in children:
                 child_vec = kmeans.cluster_centers_[label]
-                children[i] = rsmodel.Node(uuid.uuid4(), parent.tree_id, parent.depth + 1, child_vec)
+                children[i] = vtmodel.Node(uuid.uuid4(), parent.tree_id, parent.depth + 1, child_vec)
 
             children[i].features.append(parent.features[i])
 
         return children
 
-    def _get_features_vecs(self, features: List[rsmodel.Feature]) -> List[np.ndarray]:
+    def _get_features_vecs(self, features: List[vtmodel.Feature]) -> List[np.ndarray]:
         vecs = [None] * len(features)
 
         for i in range(len(features)):
@@ -265,13 +272,13 @@ class VocabularyTree:
 
         return vecs
 
-    def _assign_children(self, parent: rsmodel.Node, children: List[rsmodel.Node]) -> None:
+    def _assign_children(self, parent: vtmodel.Node, children: List[vtmodel.Node]) -> None:
         parent.features = set()
 
         for child in children.values():
             parent.children.add(child.id)
 
-    def _get_document_frequencies(self, node: rsmodel.Node) -> Dict[uuid.UUID, int]:
+    def _get_document_frequencies(self, node: vtmodel.Node) -> Dict[uuid.UUID, int]:
         frequencies = dict()
 
         for feature in node.features:
@@ -294,9 +301,9 @@ class VocabularyTree:
 
             self._tree_store.destroy_obsolete_nodes(tx)
 
-        self._store.atomically(_cb)
+        self._tx_store.in_tx(_cb)
 
-    def query(self, doc: rsmodel.Document, n: int) -> List[uuid.UUID]:
+    def query(self, doc: vtmodel.Document, n: int) -> List[uuid.UUID]:
         """
         query finds the n most similar docs to the provided one and returns their IDs.
         It may return less than n docs at times.
@@ -308,20 +315,20 @@ class VocabularyTree:
 
             root = self._tree_store.get_root(tx)
             if root is None:
-                raise ErrNodeNotFound("failed getting root of tree")
+                raise ErrNodeNotFound("getting root of tree")
 
             query_tfs = self._find_term_frequencies(tx, doc, root)
             term_scores = self._find_term_scores(tx, doc, root, query_tfs)
             doc_ids = self._find_n_most_relevant_docs(doc, n, term_scores)
 
-        self._store.atomically(_cb)
+        self._tx_store.in_tx(_cb)
         return doc_ids
 
-    def _find_term_frequencies(self, tx: any, doc: rsmodel.Document, root: rsmodel.Node) -> Dict[uuid.UUID, int]:
+    def _find_term_frequencies(self, tx: any, doc: vtmodel.Document, root: vtmodel.Node) -> Dict[uuid.UUID, int]:
         query_tfs: Dict[uuid.UUID, int] = dict()
-        nodes: Dict[uuid.UUID, rsmodel.Node] = dict()
+        nodes: Dict[uuid.UUID, vtmodel.Node] = dict()
 
-        def _search_leaf(node: Optional[rsmodel.Node], vec: np.ndarray) -> None:
+        def _search_leaf(node: Optional[vtmodel.Node], vec: np.ndarray) -> None:
             nonlocal query_tfs
             nonlocal nodes
             nonlocal tx
@@ -364,8 +371,8 @@ class VocabularyTree:
     def _find_term_scores(
         self,
         tx: any,
-        query_doc: rsmodel.Document,
-        root: rsmodel.Node,
+        query_doc: vtmodel.Document,
+        root: vtmodel.Node,
         query_tfs: Dict[uuid.UUID, int],
     ) -> Dict[uuid.UUID, Dict[uuid.UUID, float]]:
         term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
@@ -396,21 +403,21 @@ class VocabularyTree:
         return term_scores
 
     def _find_n_most_relevant_docs(
-        self, query_doc: rsmodel.Document, n: int, term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
+        self, query_doc: vtmodel.Document, n: int, term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
     ) -> List[uuid.UUID]:
-        doc_vecs : Dict[uuid.UUID, np.ndarray] = dict()
+        doc_vecs: Dict[uuid.UUID, np.ndarray] = dict()
         term_ids = list(term_scores.keys())
 
         for i in range(term_ids):
             for doc_id, tf_idf in term_scores[term_ids[i]].items():
                 if doc_id not in doc_vecs:
                     doc_vecs[doc_id] = np.zeros((len(term_ids),), dtype=np.float32)
-                
+
                 doc_vecs[doc_id][i] = tf_idf
 
         query_doc_vec = doc_vecs[query_doc.id]
         norm_query_doc_vec = query_doc_vec / np.linalg.norm(query_doc_vec, ord="1")
-        doc_scores : List[Tuple[uuid.UUID, float]] = []
+        doc_scores: List[Tuple[uuid.UUID, float]] = []
 
         for doc_id, doc_vec in doc_vecs.items():
             if doc_id == query_doc.id:
@@ -427,4 +434,4 @@ class VocabularyTree:
             return a[1] - b[1]
 
         sorted(doc_scores, _compare_fn)
-        return doc_scores[:min(n, len(doc_scores))]
+        return doc_scores[: min(n, len(doc_scores))]

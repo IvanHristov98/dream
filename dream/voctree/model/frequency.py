@@ -1,6 +1,5 @@
 import uuid
 from typing import NamedTuple
-import math
 
 
 class DocumentFrequency(NamedTuple):

@@ -1,7 +1,6 @@
-import logging
 from typing import NamedTuple
 
-import dream.revsearch.service as revsearch
+import dream.voctree.service as revsearch
 
 
 class Config(NamedTuple):
