@@ -9,6 +9,20 @@ import dream.voctree.service as service
 import dream.pg as dreampg
 import dream.voctree.store.model as storemodel
 
+_MAX_TREE_COUNT = 2
+
+
+class ErrTrainingInProgress(Exception):
+    """
+    ErrTrainingInProgress is thrown when tree is added while training of another is in progress.
+    """
+
+
+class ErrTreeCountOverflow(Exception):
+    f"""
+    ErrTreeCountOverflow is thrown when more than {_MAX_TREE_COUNT} trees are attempted to be added.
+    """
+
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
@@ -19,14 +33,43 @@ class JSONEncoder(json.JSONEncoder):
 
 
 class VocabularyTreeStore(service.VocabularyTreeStore):
+    _tree_table: str
     _node_table: str
     _train_job_table: str
 
-    def __init__(self, node_table: str, train_job_table: str) -> None:
+    def __init__(self, tree_table: str, node_table: str, train_job_table: str) -> None:
         super().__init__()
 
+        self._tree_table = tree_table
         self._node_table = node_table
         self._train_job_table = train_job_table
+
+    def add_tree(self, tx: any, tree_id: uuid.UUID) -> None:
+        pg_tx = dreampg.to_tx(tx)
+
+        if self._is_training_in_progress(pg_tx):
+            raise ErrTrainingInProgress(f"inserting {tree_id} while training is in progress")
+
+        if self._get_tree_count(pg_tx) == _MAX_TREE_COUNT:
+            raise ErrTreeCountOverflow(f"inserting more than {_MAX_TREE_COUNT} trees")
+
+        pg_tx.execute(f"INSERT INTO {self._tree_table} (id) VALUES (%s)", (tree_id,))
+
+    def _is_training_in_progress(self, pg_tx: psycopg.Cursor) -> bool:
+        pg_tx.execute(f"SELECT COUNT(1) FROM {self._train_job_table};")
+        record = pg_tx.fetchone()
+        if record is None:
+            raise RuntimeError("expected to receive at least one row on check for training in progress")
+
+        return record[0] > 0
+
+    def _get_tree_count(self, pg_tx: psycopg.Cursor) -> int:
+        pg_tx.execute(f"SELECT COUNT(1) FROM {self._tree_table};")
+        record = pg_tx.fetchone()
+        if record is None:
+            raise RuntimeError("expected to receive at least one row when getting tree count")
+
+        return record[0]
 
     def add_node(self, tx: any, node: vtmodel.Node) -> None:
         pg_tx = dreampg.to_tx(tx)
@@ -45,13 +88,10 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
 
     def push_train_job(self, tx: any, job: vtmodel.TrainJob) -> None:
         pg_tx = dreampg.to_tx(tx)
-
         pg_tx.execute(
-            f"INSERT INTO {self._train_job_table} (id, node_id) VALUES (%s, %s)",
-            (job.id.hex, job.added_node.id.hex),
+            f"INSERT INTO {self._train_job_table} (id, node_id) VALUES (%s, %s);",
+            (job.id, job.added_node.id),
         )
-
-        return None
 
     def fetch_train_job(self, tx: any) -> Optional[vtmodel.TrainJob]:
         pg_tx = dreampg.to_tx(tx)
@@ -64,18 +104,17 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
         if record is None:
             return None
 
-        event_id = uuid.UUID(record[0])
-        node_id = uuid.UUID(record[1])
-
-        node = self._get_node(pg_tx, node_id)
+        node = self._get_node(pg_tx, record[1])
         if node is None:
             # It shouldn't be possible to encounter this scenario.
             raise RuntimeError("missing node for node_added event")
 
-        return vtmodel.NodeAdded(event_id, node)
+        return vtmodel.TrainJob(record[0], node)
 
     def pop_train_job(self, tx: any, job_id: uuid.UUID) -> None:
-        return
+        pg_tx = dreampg.to_tx(tx)
+
+        pg_tx.execute(f"DELETE FROM {self._train_job_table} WHERE id=%s;", (job_id,))
 
     def update_node(self, tx: any, node: vtmodel.Node) -> None:
         pg_tx = dreampg.to_tx(tx)
@@ -92,7 +131,19 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
         )
 
     def get_root(self, tx: any) -> Optional[vtmodel.Node]:
-        return None
+        pg_tx = dreampg.to_tx(tx)
+
+        pg_tx.execute(
+            f"""SELECT n.id, n.tree_id, n.depth, n.vec, n.children, n.features 
+            FROM {self._node_table} AS n
+            WHERE n.depth=0 AND n.tree_id NOT IN (
+                SELECT n2.tree_id 
+                FROM {self._node_table} AS n2 JOIN {self._train_job_table} tj ON n2.id = tj.node_id
+                LIMIT 1
+            )
+            LIMIT 1;"""
+        )
+        return self._read_node(pg_tx)
 
     def get_node(self, tx: any, id: uuid.UUID) -> Optional[vtmodel.Node]:
         return self._get_node(tx, id)
@@ -103,6 +154,9 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
             FROM {self._node_table} WHERE id=%s""",
             (id,),
         )
+        return self._read_node(pg_tx)
+
+    def _read_node(self, pg_tx: psycopg.Cursor) -> Optional[vtmodel.Node]:
         record = pg_tx.fetchone()
         if record is None:
             return None
@@ -111,8 +165,20 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
 
         return storemodel.to_node(p_node)
 
-    def is_training_in_progress(self, tx: any) -> bool:
-        return False
+    def cleanup(self, tx: any) -> None:
+        pg_tx = dreampg.to_tx(tx)
 
-    def destroy_obsolete_nodes(self, tx: any) -> None:
-        return
+        if self._is_training_in_progress(pg_tx):
+            return
+
+        pg_tx.execute(f"SELECT id FROM {self._tree_table};")
+        records = pg_tx.fetchall()
+        print(records)
+
+        if len(records) != _MAX_TREE_COUNT:
+            return
+
+        # They are always 2 so we're safe.
+        tree_id = records[0][0]
+        pg_tx.execute(f"DELETE FROM {self._node_table} WHERE tree_id=%s;", (tree_id,))
+        pg_tx.execute(f"DELETE FROM {self._tree_table} WHERE id=%s;", (tree_id,))

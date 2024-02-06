@@ -73,3 +73,6 @@ class TrainJob:
     def __init__(self, id: uuid.UUID, added_node: Node) -> None:
         self.id = id
         self.added_node = added_node
+
+    def __eq__(self, other: object) -> bool:
+        return self.id == other.id and self.added_node == other.added_node

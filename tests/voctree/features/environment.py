@@ -19,17 +19,25 @@ def migrate_up_db(context):
     def _cb(tx: Any) -> None:
         cur = dreampg.to_tx(tx)
         cur.execute(
-            f"""CREATE TABLE IF NOT EXISTS test_node (
-            id       UUID  PRIMARY KEY,
-            tree_id  UUID NOT NULL,
-            depth    INT NOT NULL,
-            vec      JSONB NOT NULL,
-            children JSONB NOT NULL,
-            features JSONB NOT NULL);"""
+            """CREATE TABLE IF NOT EXISTS test_tree (
+                id UUID PRIMARY KEY,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());"""
         )
-        cur.execute(f"CREATE INDEX IF NOT EXISTS test_node_tree_id_depth_idx ON test_node (tree_id, depth);")
         cur.execute(
-            f"""CREATE TABLE IF NOT EXISTS test_train_job (
+            """CREATE TABLE IF NOT EXISTS test_node (
+            id         UUID  PRIMARY KEY,
+            tree_id    UUID NOT NULL,
+            depth      INT NOT NULL,
+            vec        JSONB NOT NULL,
+            children   JSONB NOT NULL,
+            features   JSONB NOT NULL,
+            
+            CONSTRAINT fk_tree_id FOREIGN KEY (tree_id) REFERENCES test_tree(id));"""
+        )
+        # Index is used when fetching root.
+        cur.execute(f"CREATE INDEX IF NOT EXISTS test_node_depth_tree_id_idx ON test_node (depth, tree_id);")
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS test_train_job (
             id         UUID PRIMARY KEY,
             node_id    UUID NOT NULL,
 
@@ -44,6 +52,7 @@ def migrate_down_db(context):
         cur = dreampg.to_tx(tx)
         cur.execute("DROP TABLE IF EXISTS test_train_job;")
         cur.execute("DROP TABLE IF EXISTS test_node;")
+        cur.execute("DROP TABLE IF EXISTS test_tree;")
 
     dreampg.with_tx(context.conn_pool, _cb)
 
@@ -54,6 +63,7 @@ def cleanup_db(context):
         cur = dreampg.to_tx(tx)
         cur.execute("DELETE FROM test_train_job;")
         cur.execute("DELETE FROM test_node;")
+        cur.execute("DELETE FROM test_tree;")
 
     dreampg.with_tx(context.conn_pool, _cb)
 

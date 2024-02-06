@@ -35,5 +35,7 @@ define clean_dir_except_file
 endef
 
 test:
-	@export PYTHONPATH="${PYTHONPATH}:${PWD}"
-	@cd tests/voctree && behave --format="progress" && cd -
+	@cd tests/voctree && PYTHONPATH="${PYTHONPATH}:${PWD}" behave --format="progress" && cd -
+
+test-wip:
+	@cd tests/voctree && PYTHONPATH="${PYTHONPATH}:${PWD}" behave -w && cd -

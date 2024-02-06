@@ -11,7 +11,7 @@ import dream.voctree.model as vtmodel
 
 class ErrNodeNotFound(Exception):
     """
-    It is thrown whenever a node is not found.
+    ErrNodeNotFound is thrown whenever a node is not found.
     """
 
 
@@ -24,6 +24,12 @@ class DocStore(abc.ABC):
 
 
 class VocabularyTreeStore(abc.ABC):
+    def add_tree(self, tx: any, tree_id: uuid.UUID) -> None:
+        """
+        add_tree adds a new tree. There can be at most 2 trees - a blue and a green one.
+        """
+        raise NotImplementedError("")
+
     def add_node(self, tx: any, node: vtmodel.Node) -> None:
         """
         add_node adds a new node.
@@ -66,18 +72,10 @@ class VocabularyTreeStore(abc.ABC):
         """
         raise NotImplementedError("")
 
-    def is_training_in_progress(self, tx: any) -> bool:
+    def cleanup(self, tx: any) -> None:
         """
-        is_training_in_progress checks whether all node_added events are consumed.
-        """
-        raise NotImplementedError("")
-
-    def destroy_obsolete_nodes(self, tx: any) -> None:
-        """
-        destroy_obsolete_nodes destroys all nodes except the ones of the latest tree. Shouldn't be called while
-        training is in progress so that we don't end up having partial vocabulary trees.
-
-        It is a no-op when there are no nodes in the store.
+        cleanup removes any obsolete nodes once training is complete.
+        It aims to keep only one active tree.
         """
         raise NotImplementedError("")
 
@@ -161,9 +159,12 @@ class VocabularyTree:
         """
 
         def _cb(tx: any) -> None:
+            tree_id = uuid.uuid4()
+            self._tree_store.add_tree(tx, tree_id)
+
             feature_dim = self._doc_store.get_feature_dim()
             root_vec = np.zeros((feature_dim,), dtype=np.float32)
-            root = vtmodel.Node(uuid.uuid4(), uuid.uuid4(), self._START_DEPTH, root_vec)
+            root = vtmodel.Node(uuid.uuid4(), tree_id, self._START_DEPTH, root_vec)
 
             docs = self._doc_store.get_documents(tx, sample_size)
             root.features = self._docs_to_features(docs)
@@ -296,10 +297,7 @@ class VocabularyTree:
         """
 
         def _cb(tx: any) -> None:
-            if self._tree_store.is_training_in_progress(tx):
-                return
-
-            self._tree_store.destroy_obsolete_nodes(tx)
+            self._tree_store.cleanup(tx)
 
         self._tx_store.in_tx(_cb)
 
