@@ -136,8 +136,26 @@ Feature: Vocabulary tree store
         When train job is fetched
         Then a train job for node Foo is returned
 
-    # @db.cleanup
-    # Scenario: Fetch train job during training while another is being processed
+    @db.cleanup
+    Scenario Outline: Fetch free train job during training while another is being processed
+        Given blue tree is inserted
+        And node Foo is inserted
+        And node Bar is inserted
+        And a train job for node Foo is created
+        And a train job for node Bar is created
+        And a train job for node Foo is pushed
+        And a train job for node Bar is pushed
+        When <worker_count> train jobs are fetched in parallel txs
+        Then train jobs are returned
+            | node |
+            | Foo  |
+            | Bar  |
+
+        Examples:
+            | worker_count |
+            | 2            |
+            | 3            |
+            | 4            |
 
     @db.cleanup
     Scenario: Fetch train job after all have been popped

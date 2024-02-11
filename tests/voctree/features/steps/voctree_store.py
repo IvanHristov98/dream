@@ -1,10 +1,11 @@
-from typing import Any, List
+from typing import Any, List, Set
 import uuid
 import random
+import threading
 
 import numpy as np
 from behave import *
-from hamcrest import assert_that, is_, none, equal_to, is_in, calling, raises
+from hamcrest import assert_that, is_, none, equal_to, is_in, calling, raises, has_items
 
 from dream.voctree import store
 import dream.voctree.model as vtmodel
@@ -180,6 +181,38 @@ def step_impl(context):
     dreampg.with_tx(context.conn_pool, _cb)
 
 
+@when("{n} train jobs are fetched in parallel txs")
+def step_impl(context, n):
+    barrier = threading.Barrier(int(n))
+    fetched_jobs = []
+
+    def _train_fn():
+        def _cb(tx: Any) -> None:
+            nonlocal context
+            nonlocal barrier
+            nonlocal fetched_jobs
+
+            vt_store: store.VocabularyTreeStore = context.vt_store
+            fetched_jobs.append(vt_store.fetch_train_job(tx))
+
+            barrier.wait()
+
+        dreampg.with_tx(context.conn_pool, _cb)
+
+    workers: List[threading.Thread] = []
+
+    for _ in range(int(n)):
+        t = threading.Thread(target=_train_fn)
+        t.start()
+        
+        workers.append(t)
+
+    for worker in workers:
+        worker.join()
+
+    context.fetched_train_jobs = list(filter(lambda x: x is not None, fetched_jobs))
+
+
 @then("a null node is returned")
 def step_impl(context):
     assert_that(context.fetched_node, is_(none()))
@@ -226,3 +259,14 @@ def step_impl(context, tree_name):
         vt_store.add_tree(tx, tree_id)
 
     assert_that(calling(dreampg.with_tx).with_args(context.conn_pool, _cb), raises(Exception))
+
+
+@then("train jobs are returned")
+def step_impl(context):
+    train_jobs: List[vtmodel.Node] = []
+
+    for row in context.table:
+        train_job = context.train_jobs[row["node"]]
+        train_jobs.append(train_job)
+
+    assert_that(context.fetched_train_jobs, has_items(*train_jobs))

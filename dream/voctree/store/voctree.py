@@ -173,7 +173,6 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
 
         pg_tx.execute(f"SELECT id FROM {self._tree_table};")
         records = pg_tx.fetchall()
-        print(records)
 
         if len(records) != _MAX_TREE_COUNT:
             return
