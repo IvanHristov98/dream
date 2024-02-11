@@ -381,7 +381,7 @@ class VocabularyTree:
             df = self._freq_store.get_df(tx, term_id)
 
             # find score of query document
-            norm_query_tf = query_tf / (query_tf + df.docs_count)
+            norm_query_tf = query_tf / (query_tf + df.total_tf)
             idf = math.log((1 + docs_count) / (1 + df.unique_docs_count))
 
             query_tf_idf = norm_query_tf * idf
@@ -393,7 +393,7 @@ class VocabularyTree:
 
             tfs = self._freq_store.get_tfs(tx, term_id)
             for doc_id, tf in tfs.items():
-                norm_tf = tf / (query_tf + df.docs_count)
+                norm_tf = tf / (query_tf + df.total_tf)
                 tf_idf = norm_tf * idf
 
                 term_scores[term_id][doc_id] = tf_idf

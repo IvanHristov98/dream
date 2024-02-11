@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS caption_node_added_event (
 	CONSTRAINT fk_node_id FOREIGN KEY (node_id) REFERENCES caption_voc_tree_node(id)
 );
 
+
+
+
+
 CREATE TABLE IF NOT EXISTS caption_tf (
 	-- term_id is the id of a node in the vocabulary tree.
 	term_id UUID NOT NULL,

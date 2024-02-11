@@ -2,17 +2,20 @@ import uuid
 from typing import Dict
 
 import dream.voctree.service as service
-import dream.voctree.model as rsmodel
+import dream.voctree.model as vtmodel
 
 
 class FrequencyStore(service.FrequencyStore):
+    def __init__(self, tree_table: str, node_table: str, train_job_table: str) -> None:
+        pass
+
     def set_term(self, tx: any, term_id: uuid.UUID, frequencies: Dict[uuid.UUID, int]) -> None:
         return
 
     def set_doc_counts(self, tx: any, tree_id: uuid.UUID, doc_counts: int) -> None:
         return
 
-    def get_df(self, tx: any, term_id: uuid.UUID) -> rsmodel.DocumentFrequency:
+    def get_df(self, tx: any, term_id: uuid.UUID) -> vtmodel.DocumentFrequency:
         return None
 
     def get_doc_counts(self, tx: any, tree_id: uuid.UUID) -> int:
