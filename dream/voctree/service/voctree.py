@@ -88,19 +88,19 @@ class FrequencyStore(abc.ABC):
         """
         raise NotImplementedError("")
 
-    def set_doc_counts(self, tx: any, tree_id: uuid.UUID, doc_counts: int) -> None:
+    def set_doc_counts(self, tx: any, tree_id: uuid.UUID, docs_count: int) -> None:
         """
         set_doc_counts sets the total number of documents in a given tree.
         """
         raise NotImplementedError("")
 
-    def get_df(self, tx: any, term_id: uuid.UUID) -> vtmodel.DocumentFrequency:
+    def get_df(self, tx: any, term_id: uuid.UUID) -> Optional[vtmodel.DocumentFrequency]:
         """
         get_df returns how many unique documents a term (node) is found in.
         """
         raise NotImplementedError("")
 
-    def get_doc_counts(self, tx: any, tree_id: uuid.UUID) -> int:
+    def get_doc_counts(self, tx: any, tree_id: uuid.UUID) -> Optional[int]:
         """
         get_doc_counts gets the total number of documents in a given tree.
         """
@@ -183,7 +183,7 @@ class VocabularyTree:
 
             self._freq_store.set_term(tx, root.id, frequencies)
 
-            self._freq_store.set_doc_counts(tx, root.tree_id, doc_counts=len(docs))
+            self._freq_store.set_doc_counts(tx, root.tree_id, docs_count=len(docs))
 
         self._tx_store.in_tx(_cb)
 
@@ -377,8 +377,13 @@ class VocabularyTree:
 
         docs_count = self._freq_store.get_doc_counts(tx, root.tree_id)
 
+        if docs_count is None:
+            raise RuntimeError("there should always be a total documents count")
+
         for term_id, query_tf in query_tfs.items():
             df = self._freq_store.get_df(tx, term_id)
+            if df is None:
+                raise RuntimeError("df should alway be there")
 
             # find score of query document
             norm_query_tf = query_tf / (query_tf + df.total_tf)

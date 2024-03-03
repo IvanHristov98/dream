@@ -1,4 +1,4 @@
-from typing import Any, List, Set
+from typing import Any, List
 import uuid
 import random
 import threading
@@ -43,6 +43,8 @@ def step_impl(context, tree_name):
 @given("{tree_name} tree is inserted")
 def step_impl(context, tree_name):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         tree_id = context.trees[tree_name]
         vt_store: store.VocabularyTreeStore = context.vt_store
         vt_store.add_tree(tx, tree_id)
@@ -78,6 +80,8 @@ def step_impl(context):
 @given("node {node_name} is inserted")
 def step_impl(context, node_name):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         vt_store: store.VocabularyTreeStore = context.vt_store
         node: vtmodel.Node = context.nodes[node_name]
 
@@ -97,6 +101,8 @@ def step_impl(context, node_name):
 @given("{node_name} is updated")
 def step_impl(context, node_name):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         vt_store: store.VocabularyTreeStore = context.vt_store
         node: vtmodel.Node = context.nodes[node_name]
 
@@ -118,6 +124,8 @@ def step_impl(context, node_name):
 @given("a train job for node {node_name} is pushed")
 def step_impl(context, node_name):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         vt_store: store.VocabularyTreeStore = context.vt_store
         train_job: vtmodel.TrainJob = context.train_jobs[node_name]
 
@@ -129,6 +137,8 @@ def step_impl(context, node_name):
 @given("train job for node {node_name} is popped")
 def step_impl(context, node_name):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         vt_store: store.VocabularyTreeStore = context.vt_store
         train_job: vtmodel.TrainJob = context.train_jobs[node_name]
 
@@ -140,6 +150,8 @@ def step_impl(context, node_name):
 @given("cleanup is performed")
 def step_impl(context):
     def _cb(tx: Any) -> None:
+        nonlocal context
+
         vt_store: store.VocabularyTreeStore = context.vt_store
         vt_store.cleanup(tx)
 
@@ -204,7 +216,7 @@ def step_impl(context, n):
     for _ in range(int(n)):
         t = threading.Thread(target=_train_fn)
         t.start()
-        
+
         workers.append(t)
 
     for worker in workers:

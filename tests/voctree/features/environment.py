@@ -27,7 +27,6 @@ def migrate_up_db(context):
         _create_df_table(cur)
         _create_tree_doc_count_table(cur)
 
-
     dreampg.with_tx(context.conn_pool, _cb)
 
 
@@ -89,7 +88,7 @@ def _create_tree_doc_count_table(tx: psycopg.Cursor) -> None:
     tx.execute(
         """CREATE TABLE IF NOT EXISTS test_tree_doc_count (
         tree_id UUID PRIMARY KEY,
-        doc_count INT NOT NULL,
+        docs_count INT NOT NULL,
         
         CONSTRAINT fk_tree_id FOREIGN KEY (tree_id) REFERENCES test_tree(id));"""
     )
