@@ -7,20 +7,7 @@ import sklearn.cluster as skcluster
 import numpy as np
 
 import dream.voctree.model as vtmodel
-
-
-class ErrNodeNotFound(Exception):
-    """
-    ErrNodeNotFound is thrown whenever a node is not found.
-    """
-
-
-class DocStore(abc.ABC):
-    def get_documents(self, tx: any, sample_size: int) -> List[vtmodel.Document]:
-        raise NotImplementedError("")
-
-    def get_feature_dim(self) -> int:
-        raise NotImplementedError("")
+import dream.voctree.api as vtapi
 
 
 class VocabularyTreeStore(abc.ABC):
@@ -120,7 +107,7 @@ class TxStore(abc.ABC):
         raise NotImplementedError("")
 
 
-class VocabularyTree:
+class VocabularyTree(vtapi.VocabularyTree):
     """
     VocabularyTree implements a vocabulary tree based index over a set documents.
     """
@@ -131,7 +118,7 @@ class VocabularyTree:
     _NUM_LEVELS = 4
 
     _tx_store: TxStore
-    _doc_store: DocStore
+    _doc_store: vtapi.DocStore
     _tree_store: VocabularyTreeStore
     _freq_store: FrequencyStore
     _tf_idf_threshold: float
@@ -139,7 +126,7 @@ class VocabularyTree:
     def __init__(
         self,
         tx_store: TxStore,
-        doc_store: DocStore,
+        doc_store: vtapi.DocStore,
         tree_store: VocabularyTreeStore,
         freq_store: FrequencyStore,
         # TODO: Fine tune tf_idf threshold.
@@ -187,7 +174,7 @@ class VocabularyTree:
 
         self._tx_store.in_tx(_cb)
 
-    def _docs_to_features(self, docs: List[vtmodel.Document]) -> List[vtmodel.Feature]:
+    def _docs_to_features(self, docs: List[vtapi.Document]) -> List[vtmodel.Feature]:
         features = []
 
         for doc in docs:
@@ -301,7 +288,7 @@ class VocabularyTree:
 
         self._tx_store.in_tx(_cb)
 
-    def query(self, doc: vtmodel.Document, n: int) -> List[uuid.UUID]:
+    def query(self, doc: vtapi.Document, n: int) -> List[uuid.UUID]:
         """
         query finds the n most similar docs to the provided one and returns their IDs.
         It may return less than n docs at times.
@@ -313,7 +300,7 @@ class VocabularyTree:
 
             root = self._tree_store.get_root(tx)
             if root is None:
-                raise ErrNodeNotFound("getting root of tree")
+                raise vtapi.ErrNodeNotFound("getting root of tree")
 
             query_tfs = self._find_term_frequencies(tx, doc, root)
             term_scores = self._find_term_scores(tx, doc, root, query_tfs)
@@ -322,7 +309,7 @@ class VocabularyTree:
         self._tx_store.in_tx(_cb)
         return doc_ids
 
-    def _find_term_frequencies(self, tx: any, doc: vtmodel.Document, root: vtmodel.Node) -> Dict[uuid.UUID, int]:
+    def _find_term_frequencies(self, tx: any, doc: vtapi.Document, root: vtmodel.Node) -> Dict[uuid.UUID, int]:
         query_tfs: Dict[uuid.UUID, int] = dict()
         nodes: Dict[uuid.UUID, vtmodel.Node] = dict()
 
@@ -350,7 +337,7 @@ class VocabularyTree:
                 else:
                     child = self._tree_store.get_node(tx, child_id)
                     if child is None:
-                        raise ErrNodeNotFound(f"failed getting child node {child_id}")
+                        raise vtapi.ErrNodeNotFound(f"failed getting child node {child_id}")
 
                     nodes[child_id] = child
 
@@ -369,7 +356,7 @@ class VocabularyTree:
     def _find_term_scores(
         self,
         tx: any,
-        query_doc: vtmodel.Document,
+        query_doc: vtapi.Document,
         root: vtmodel.Node,
         query_tfs: Dict[uuid.UUID, int],
     ) -> Dict[uuid.UUID, Dict[uuid.UUID, float]]:
@@ -406,7 +393,7 @@ class VocabularyTree:
         return term_scores
 
     def _find_n_most_relevant_docs(
-        self, query_doc: vtmodel.Document, n: int, term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
+        self, query_doc: vtapi.Document, n: int, term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
     ) -> List[uuid.UUID]:
         doc_vecs: Dict[uuid.UUID, np.ndarray] = dict()
         term_ids = list(term_scores.keys())

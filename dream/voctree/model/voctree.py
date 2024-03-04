@@ -4,20 +4,6 @@ from typing import Set, List, NamedTuple
 import numpy as np
 
 
-class Document:
-    """
-    Document may be any entity that can be semantically represented with a set descriptor vectors.
-    Examples are images, sentences, etc.
-    """
-
-    id: uuid.UUID
-    vectors: List[np.ndarray]
-
-    def __init__(self, id: uuid.UUID, vectors: List[np.ndarray]) -> None:
-        self.id = id
-        self.vectors = vectors
-
-
 class Feature(NamedTuple):
     doc_id: uuid.UUID
     vec: np.ndarray

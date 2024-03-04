@@ -41,12 +41,12 @@ class Image:
     """
 
     id: ImageID
-    labels: List[str]
+    captions: List[str]
     mat: np.ndarray
     dataset: str
 
     def __init__(self) -> None:
-        self.labels = []
+        self.captions = []
 
     def with_id(self, id: ImageID) -> "Image":
         self.id = id
@@ -60,18 +60,18 @@ class Image:
         self.dataset = dataset
         return self
 
-    def with_labels(self, labels: List[str]) -> "Image":
+    def with_captions(self, captions: List[str]) -> "Image":
         """
-        with_labels removes all current labels on the model and copies the provided ones as the new labels.
+        with_captions removes all current captions on the model and copies the provided ones as the new captions.
         It should be used only for construction.
         """
 
-        self.labels = []
+        self.captions = []
 
-        for label in labels:
-            self.labels.append(label)
+        for caption in captions:
+            self.captions.append(caption)
 
         return self
 
-    def add_label(self, label: str) -> None:
-        self.labels.append(label)
+    def add_caption(self, caption: str) -> None:
+        self.captions.append(caption)
