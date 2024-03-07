@@ -48,7 +48,7 @@ def _create_node_table(tx: psycopg.Cursor) -> None:
         children   JSONB NOT NULL,
         features   JSONB NOT NULL,
     
-        CONSTRAINT fk_tree_id FOREIGN KEY (tree_id) REFERENCES test_tree(id));"""
+        CONSTRAINT test_node_tree_id_fk FOREIGN KEY (tree_id) REFERENCES test_tree(id));"""
     )
     # Index is used when fetching root.
     tx.execute(f"CREATE INDEX IF NOT EXISTS test_node_depth_tree_id_idx ON test_node (depth, tree_id);")
@@ -60,7 +60,7 @@ def _create_train_job_table(tx: psycopg.Cursor) -> None:
         id         UUID PRIMARY KEY,
         node_id    UUID NOT NULL,
 
-        CONSTRAINT fk_node_id FOREIGN KEY (node_id) REFERENCES test_node(id));"""
+        CONSTRAINT test_train_job_node_id_fk FOREIGN KEY (node_id) REFERENCES test_node(id));"""
     )
 
 
