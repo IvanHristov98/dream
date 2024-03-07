@@ -1,17 +1,15 @@
 from pathlib import Path
-import glob
-from typing import List
 
 import cv2 as cv
 
-from dream.revsearch import service
+import dream.semsearch.service as semsearchservice
 from dream import model
 
 
 _JPG_EXT = "jpg"
 
 
-class FSImageStore(service.ImageStore):
+class ImageStore(semsearchservice.ImageStore):
     _ims_path: Path
 
     def __init__(self, ims_path: Path) -> None:

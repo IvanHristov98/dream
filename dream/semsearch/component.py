@@ -1,0 +1,3 @@
+
+def NewCaptionsService():
+    return None

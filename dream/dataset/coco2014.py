@@ -22,7 +22,7 @@ class ImageMetadata:
         self.captions.append(caption)
 
 
-class Coco2014Iterator(dataset.DatasetIterator):
+class COCO2014Iterator(dataset.DatasetIterator):
     _DATASET_NAME = "coco2014"
 
     _ims_path: Path
@@ -66,7 +66,7 @@ class Coco2014Iterator(dataset.DatasetIterator):
             .with_id(model.new_image_id())
             .with_mat(mat)
             .with_dataset(self._DATASET_NAME)
-            .with_labels(im_metadata.captions)
+            .with_captions(im_metadata.captions)
         )
 
     def len(self) -> int:

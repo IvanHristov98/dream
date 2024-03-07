@@ -24,6 +24,7 @@ lint:
 fmt:
 	@black ./dream -l 120
 	@black ./cmd -l 120
+	@black ./tests -l 120
 
 clean-imstore:
 	$(call clean_dir_except_file,${PWD}/tmp/imstore,.gitignore)
@@ -32,3 +33,9 @@ define clean_dir_except_file
 	@echo "Cleaning $(1) except $(2)..."
 	@find "$(1)" -mindepth 1 | grep -v "$(2)" | xargs -I {} rm {}
 endef
+
+test:
+	@cd tests/voctree && PYTHONPATH="${PYTHONPATH}:${PWD}" behave --format="progress" && cd -
+
+test-wip:
+	@cd tests/voctree && PYTHONPATH="${PYTHONPATH}:${PWD}" behave -w && cd -

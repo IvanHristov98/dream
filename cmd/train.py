@@ -1,11 +1,11 @@
 import argparse
 
-import dream.revsearch.store as revsearchstore
-import dream.revsearch.imstore as revsearchimstore
-from dream.revsearch import featureextractor
-import dream.revsearch.service as revsearchservice
+import dream.voctree.store as revsearchstore
+import dream.voctree.imstore as revsearchimstore
+from dream.voctree import featureextractor
+import dream.voctree.service as revsearchservice
 from dream import logging as dreamlogging
-from dream import db as dreamdb
+from dream import pg as dreamdb
 from dream.controller import train
 
 
@@ -18,7 +18,7 @@ def main() -> None:
     store = revsearchstore.Store(pool)
     im_store = revsearchimstore.FSImageStore(args.imstore_ims_path)
     feature_extractor = featureextractor.SiftExtractor()
-    
+
     vtree = revsearchservice.VocabularyTree(store, im_store, feature_extractor)
     cfg = train.Config(sample_size=args.sample_size)
 
