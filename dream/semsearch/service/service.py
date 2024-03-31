@@ -17,9 +17,6 @@ class ImageStore(abc.ABC):
     def store_matrix(self, _: model.Image) -> None:
         raise NotImplementedError("")
 
-    def load_matrix(self, _: model.Image) -> model.Image:
-        raise NotImplementedError("")
-
 
 class SemSearchService:
     _vtree: vtapi.VocabularyTree

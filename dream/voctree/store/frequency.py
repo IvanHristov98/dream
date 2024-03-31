@@ -1,8 +1,6 @@
 import uuid
 from typing import Dict, Optional
 
-import psycopg
-
 import dream.voctree.service as service
 import dream.voctree.model as vtmodel
 import dream.pg as dreampg
