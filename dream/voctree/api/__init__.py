@@ -1,6 +1,7 @@
 from dream.voctree.api.voctree import (
     VocabularyTree,  # noqa
-    ErrNodeNotFound,  # noqa
+    ErrNodeNotFound,  #noqa
+    ErrTrainingInProgress, #noqa
     DocStore,  # noqa
     Document,  # noqa
 )

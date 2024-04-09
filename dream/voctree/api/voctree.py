@@ -11,6 +11,12 @@ class ErrNodeNotFound(Exception):
     """
 
 
+class ErrTrainingInProgress(Exception):
+    """
+    ErrTrainingInProgress is thrown when tree is added while training of another is in progress.
+    """
+
+
 class Document:
     """
     Document may be any entity that can be semantically represented with a set descriptor vectors.

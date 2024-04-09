@@ -1,2 +1,0 @@
-def NewCaptionsService():
-    return None

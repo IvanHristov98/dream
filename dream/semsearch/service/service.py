@@ -1,5 +1,6 @@
 import abc
-from typing import Callable
+from typing import Callable, List
+import uuid
 
 import dream.voctree.api as vtapi
 from dream import model
@@ -19,12 +20,20 @@ class ImageStore(abc.ABC):
 
 
 class SemSearchService:
-    _vtree: vtapi.VocabularyTree
+    _captions_vtree: vtapi.VocabularyTree
+    _ims_vtree: vtapi.VocabularyTree
     _im_store: ImageStore
     _store: Store
 
-    def __init__(self, vtree: vtapi.VocabularyTree, im_store: ImageStore, store: Store) -> None:
-        self._vtree = vtree
+    def __init__(
+        self,
+        captions_vtree: vtapi.VocabularyTree,
+        ims_vtree: vtapi.VocabularyTree,
+        im_store: ImageStore,
+        store: Store,
+    ) -> None:
+        self._captions_vtree = captions_vtree
+        self._ims_vtree = ims_vtree
         self._im_store = im_store
         self._store = store
 
@@ -38,3 +47,6 @@ class SemSearchService:
             self._store.add_image_metadata(tx, im)
 
         self._store.atomically(_cb)
+
+    def query(self, sentence: str, n: int) -> List[uuid.UUID]:
+        return []

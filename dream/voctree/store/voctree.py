@@ -8,14 +8,10 @@ import dream.voctree.model as vtmodel
 import dream.voctree.service as service
 import dream.pg as dreampg
 import dream.voctree.store.model as storemodel
+import dream.voctree.api as vtapi
+
 
 _MAX_TREE_COUNT = 2
-
-
-class ErrTrainingInProgress(Exception):
-    """
-    ErrTrainingInProgress is thrown when tree is added while training of another is in progress.
-    """
 
 
 class ErrTreeCountOverflow(Exception):
@@ -48,7 +44,7 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
         pg_tx = dreampg.to_tx(tx)
 
         if self._is_training_in_progress(pg_tx):
-            raise ErrTrainingInProgress(f"inserting {tree_id} while training is in progress")
+            raise vtapi.ErrTrainingInProgress(f"inserting {tree_id} while training is in progress")
 
         if self._get_tree_count(pg_tx) == _MAX_TREE_COUNT:
             raise ErrTreeCountOverflow(f"inserting more than {_MAX_TREE_COUNT} trees")

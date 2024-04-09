@@ -27,9 +27,9 @@ class CaptionStore(vtapi.DocStore):
         for im in ims:
             vectors = self._transformer.encode(im.captions)
             doc = vtapi.Document(im.id, vectors)
-            
+
             docs.append(doc)
-    
+
         return docs
 
     def get_feature_dim(self) -> int:
