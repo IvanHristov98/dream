@@ -1,14 +1,10 @@
 import argparse
 from pathlib import Path
 
-import dream.voctree.store as revsearchstore
-import dream.voctree.service as revsearchservice
-import dream.voctree.imstore as revsearchimstore
-from dream.voctree import featureextractor
 from dream.controller import seed
 from dream import dataset
 from dream import logging as dreamlogging
-from dream import pg as dreamdb
+from dream import semsearch
 
 
 def main() -> None:
@@ -17,15 +13,9 @@ def main() -> None:
 
     ds_iter = dataset.Coco2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
 
-    pool = dreamdb.new_pool()
+    _, _, semsearch_svc = semsearch.new_svc(args.imstore_ims_path)
 
-    store = revsearchstore.Store(pool)
-    im_store = revsearchimstore.FSImageStore(args.imstore_ims_path)
-    feature_extractor = featureextractor.SiftExtractor()
-
-    vtree = revsearchservice.VocabularyTree(store, im_store, feature_extractor)
-
-    ctl = seed.SeedController(vtree, ds_iter)
+    ctl = seed.SeedController(semsearch_svc, ds_iter)
     ctl.run()
 
 
