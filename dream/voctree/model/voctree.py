@@ -30,14 +30,14 @@ class Node:
     # Only leaf nodes should have features.
     features: List[Feature]
 
-    def __init__(self, id: uuid.UUID, tree_id: uuid.UUID, depth: int, vec: np.ndarray) -> None:
-        self.id = id
+    def __init__(self, node_id: uuid.UUID, tree_id: uuid.UUID, depth: int, vec: np.ndarray) -> None:
+        self.id = node_id
         self.tree_id = tree_id
         self.depth = depth
         self.vec = vec
 
         self.children = set()
-        self.features = list()
+        self.features = []
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Node):
@@ -56,8 +56,8 @@ class TrainJob:
     id: uuid.UUID
     added_node: Node
 
-    def __init__(self, id: uuid.UUID, added_node: Node) -> None:
-        self.id = id
+    def __init__(self, job_id: uuid.UUID, added_node: Node) -> None:
+        self.id = job_id
         self.added_node = added_node
 
     def __eq__(self, other: object) -> bool:

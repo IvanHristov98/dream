@@ -2,7 +2,7 @@ from typing import Callable
 
 import psycopg_pool
 
-import dream.voctree.service as service
+from dream.voctree import service
 import dream.pg as dreampg
 
 

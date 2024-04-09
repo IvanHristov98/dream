@@ -37,10 +37,17 @@ class PersistedNode:
     children: List[str]
     features: List[PersistedFeature]
 
+    # pylint: disable-next=too-many-arguments
     def __init__(
-        self, id: str, tree_id: str, depth: int, vec: List[float], children: List[str], features: List[PersistedFeature]
+        self,
+        node_id: str,
+        tree_id: str,
+        depth: int,
+        vec: List[float],
+        children: List[str],
+        features: List[PersistedFeature],
     ) -> None:
-        self.id = id
+        self.id = node_id
         self.tree_id = tree_id
         self.depth = depth
         self.vec = vec

@@ -1,7 +1,7 @@
 import uuid
 from typing import Dict, Optional
 
-import dream.voctree.service as service
+from dream.voctree import service
 import dream.voctree.model as vtmodel
 import dream.pg as dreampg
 
@@ -69,7 +69,7 @@ class FrequencyStore(service.FrequencyStore):
         pg_tx = dreampg.to_tx(tx)
 
         pg_tx.execute(f"SELECT doc_id, frequency FROM {self._tf_table} WHERE term_id = %s;", (term_id,))
-        tfs: Dict[uuid.UUID, int] = dict()
+        tfs: Dict[uuid.UUID, int] = {}
 
         while True:
             records = pg_tx.fetchmany(size=self._FETCH_SIZE)

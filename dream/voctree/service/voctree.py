@@ -53,7 +53,7 @@ class VocabularyTreeStore(abc.ABC):
         """
         raise NotImplementedError("")
 
-    def get_node(self, tx: any, id: uuid.UUID) -> Optional[vtmodel.Node]:
+    def get_node(self, tx: any, node_id: uuid.UUID) -> Optional[vtmodel.Node]:
         """
         get_node returns a node by id.
         """
@@ -116,27 +116,25 @@ class VocabularyTree(vtapi.VocabularyTree):
     # Recommended values from the paper are 10 clusters and 6 levels.
     _NUM_CLUSTERS = 8
     _NUM_LEVELS = 4
+    # TODO: Fine tune tf_idf threshold.
+    _TF_IDF_THRESHOLD = 0.05
 
     _tx_store: TxStore
     _doc_store: vtapi.DocStore
     _tree_store: VocabularyTreeStore
     _freq_store: FrequencyStore
-    _tf_idf_threshold: float
 
-    def __init__(
+    def __init__(  # noqa # it is a constructor so it should be fine
         self,
         tx_store: TxStore,
         doc_store: vtapi.DocStore,
         tree_store: VocabularyTreeStore,
         freq_store: FrequencyStore,
-        # TODO: Fine tune tf_idf threshold.
-        tf_idf_threshold: float = 0.05,
     ) -> None:
         self._tx_store = tx_store
         self._doc_store = doc_store
         self._tree_store = tree_store
         self._freq_store = freq_store
-        self._tf_idf_threshold = tf_idf_threshold
 
     def start_training(self, sample_size: int) -> None:
         """
@@ -158,12 +156,12 @@ class VocabularyTree(vtapi.VocabularyTree):
 
             # TODO: What happens when more than two trees are added -> Raise exception.
             self._tree_store.add_node(tx, root)
-            self._tree_store.push_train_job(tx, vtmodel.TrainJob(id=uuid.uuid4(), added_node=root))
+            self._tree_store.push_train_job(tx, vtmodel.TrainJob(job_id=uuid.uuid4(), added_node=root))
 
             # A term (node) is in a document if a feature of that document is in the node.
             # The term frequency for a given document is the number of features of a given
             # document that are in the node.
-            frequencies = dict()
+            frequencies = {}
 
             for doc in docs:
                 frequencies[doc.id] = len(doc.vectors)
@@ -224,7 +222,7 @@ class VocabularyTree(vtapi.VocabularyTree):
         for child in children:
             self._tree_store.add_node(tx, child)
 
-            doc_frequencies = self._get_document_frequencies()
+            doc_frequencies = self._get_document_frequencies(child)
             self._freq_store.set_term(tx, child.id, doc_frequencies)
 
         self._tree_store.update_node(tx, parent)
@@ -239,11 +237,9 @@ class VocabularyTree(vtapi.VocabularyTree):
             # This error should not be encountered.
             raise RuntimeError("the number of features should be equal to the number of labels")
 
-        children: Dict[int, vtmodel.Node] = dict()
+        children: Dict[int, vtmodel.Node] = {}
 
-        for i in range(len(kmeans.labels_)):
-            label = kmeans.labels_[i]
-
+        for i, label in enumerate(kmeans.labels_):
             if label not in children:
                 child_vec = kmeans.cluster_centers_[label]
                 children[i] = vtmodel.Node(uuid.uuid4(), parent.tree_id, parent.depth + 1, child_vec)
@@ -255,8 +251,8 @@ class VocabularyTree(vtapi.VocabularyTree):
     def _get_features_vecs(self, features: List[vtmodel.Feature]) -> List[np.ndarray]:
         vecs = [None] * len(features)
 
-        for i in range(len(features)):
-            vecs[i] = features[i].vec
+        for i, feature in enumerate(features):
+            vecs[i] = feature.vec
 
         return vecs
 
@@ -267,7 +263,7 @@ class VocabularyTree(vtapi.VocabularyTree):
             parent.children.add(child.id)
 
     def _get_document_frequencies(self, node: vtmodel.Node) -> Dict[uuid.UUID, int]:
-        frequencies = dict()
+        frequencies = {}
 
         for feature in node.features:
             if feature.doc_id not in frequencies:
@@ -310,8 +306,8 @@ class VocabularyTree(vtapi.VocabularyTree):
         return doc_ids
 
     def _find_term_frequencies(self, tx: any, doc: vtapi.Document, root: vtmodel.Node) -> Dict[uuid.UUID, int]:
-        query_tfs: Dict[uuid.UUID, int] = dict()
-        nodes: Dict[uuid.UUID, vtmodel.Node] = dict()
+        query_tfs: Dict[uuid.UUID, int] = {}
+        nodes: Dict[uuid.UUID, vtmodel.Node] = {}
 
         def _search_leaf(node: Optional[vtmodel.Node], vec: np.ndarray) -> None:
             nonlocal query_tfs
@@ -360,7 +356,7 @@ class VocabularyTree(vtapi.VocabularyTree):
         root: vtmodel.Node,
         query_tfs: Dict[uuid.UUID, int],
     ) -> Dict[uuid.UUID, Dict[uuid.UUID, float]]:
-        term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
+        term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]] = {}
 
         docs_count = self._freq_store.get_doc_counts(tx, root.tree_id)
 
@@ -377,10 +373,10 @@ class VocabularyTree(vtapi.VocabularyTree):
             idf = math.log((1 + docs_count) / (1 + df.unique_docs_count))
 
             query_tf_idf = norm_query_tf * idf
-            if query_tf_idf < self._tf_idf_threshold:
+            if query_tf_idf < self._TF_IDF_THRESHOLD:
                 continue
 
-            term_scores[term_id] = dict()
+            term_scores[term_id] = {}
             term_scores[term_id][query_doc.id] = query_tf_idf
 
             tfs = self._freq_store.get_tfs(tx, term_id)
@@ -395,7 +391,7 @@ class VocabularyTree(vtapi.VocabularyTree):
     def _find_n_most_relevant_docs(
         self, query_doc: vtapi.Document, n: int, term_scores: Dict[uuid.UUID, Dict[uuid.UUID, float]]
     ) -> List[uuid.UUID]:
-        doc_vecs: Dict[uuid.UUID, np.ndarray] = dict()
+        doc_vecs: Dict[uuid.UUID, np.ndarray] = {}
         term_ids = list(term_scores.keys())
 
         for i in range(term_ids):

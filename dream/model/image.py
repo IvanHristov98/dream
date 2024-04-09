@@ -48,8 +48,8 @@ class Image:
     def __init__(self) -> None:
         self.captions = []
 
-    def with_id(self, id: ImageID) -> "Image":
-        self.id = id
+    def with_id(self, im_id: ImageID) -> "Image":
+        self.id = im_id
         return self
 
     def with_mat(self, mat: np.ndarray) -> "Image":

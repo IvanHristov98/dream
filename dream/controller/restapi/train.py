@@ -27,5 +27,5 @@ def _start_training(vtree: VocabularyTree, sample_size: int) -> None:
     try:
         vtree.start_training(sample_size)
     # Idempotence
-    except ErrTrainingInProgress as e:
-        logging.info("training is already in progress", str(e))
+    except ErrTrainingInProgress as exc:
+        logging.info("training is already in progress %s", str(exc))

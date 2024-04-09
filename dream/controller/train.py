@@ -49,8 +49,8 @@ class TrainController:
                 time.sleep(_TRAIN_SLEEP_DURATION)
 
         for _ in range(self._cfg.vtree_train_proc_count):
-            p = Process(target=train, args=(vtree,))
-            p.start()
+            proc = Process(target=train, args=(vtree,))
+            proc.start()
 
     def _run_tree_replacers(self, vtree: vtapi.VocabularyTree) -> None:
         def replace_tree(vtree: vtapi.VocabularyTree) -> None:
@@ -58,5 +58,5 @@ class TrainController:
                 vtree.try_replace_blue_tree()
                 time.sleep(_REPLACE_TREE_SLEEP_DURATION)
 
-        p = Process(target=replace_tree, args=(vtree,))
-        p.start()
+        proc = Process(target=replace_tree, args=(vtree,))
+        proc.start()

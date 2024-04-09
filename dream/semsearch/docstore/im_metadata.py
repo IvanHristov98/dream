@@ -10,13 +10,15 @@ def sample_im_metadata(pg_tx: psycopg.Cursor, sample_size: int) -> List[model.Im
     im_count = _get_im_count(pg_tx)
 
     if im_count < sample_size:
-        logging.warn(
-            f"sample_size ({sample_size}) is greater than training dataset size ({im_count}), setting to 100%",
+        logging.warning(
+            "sample_size (%d) is greater than training dataset size (%d)",
+            sample_size,
+            im_count,
         )
         sample_size = im_count
 
     if sample_size / im_count < 1:
-        logging.warn(f"sample_size must be >= 1% of the total number of images, setting it to 1%")
+        logging.warning("sample_size must be >= 1% of the total number of images, setting it to 1%")
         sample_size = im_count / 100 + 1
 
     return _load_im_metadata(pg_tx, sample_size, im_count)

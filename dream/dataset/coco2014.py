@@ -13,8 +13,8 @@ class ImageMetadata:
     file_name: str
     captions: List[str]
 
-    def __init__(self, id: int, file_name: str) -> None:
-        self.id = id
+    def __init__(self, im_id: int, file_name: str) -> None:
+        self.id = im_id
         self.file_name = file_name
         self.captions = []
 
@@ -34,10 +34,10 @@ class COCO2014Iterator(dataset.DatasetIterator):
 
         self._ims_path = ims_path
 
-        with open(captions_path) as captions_file:
+        with open(captions_path, encoding="utf-8") as captions_file:
             captions = json.load(captions_file)
 
-        captioned_ims: Dict[int, ImageMetadata] = dict()
+        captioned_ims: Dict[int, ImageMetadata] = {}
 
         for image in captions["images"]:
             captioned_ims[image["id"]] = ImageMetadata(image["id"], image["file_name"])

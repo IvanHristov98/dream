@@ -18,7 +18,14 @@ install-deps:
 .PHONY: lint
 lint:
 	@echo "\033[0;33mLinting dream package...\033[0m"
-	@pylint dream --max-line-length=120 --disable=too-many-locals
+	@pylint dream --max-line-length=120 \
+		--disable=too-many-locals \
+		--disable=missing-function-docstring \
+		--disable=missing-module-docstring \
+		--disable=missing-class-docstring \
+		--disable=too-few-public-methods \
+		--disable=fixme \
+		--disable=no-member
 
 .PHONY: fmt
 fmt:

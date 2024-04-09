@@ -26,8 +26,8 @@ class Document:
     id: uuid.UUID
     vectors: List[np.ndarray]
 
-    def __init__(self, id: uuid.UUID, vectors: List[np.ndarray]) -> None:
-        self.id = id
+    def __init__(self, doc_id: uuid.UUID, vectors: List[np.ndarray]) -> None:
+        self.id = doc_id
         self.vectors = vectors
 
 

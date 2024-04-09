@@ -29,7 +29,7 @@ class ImageStore(vtapi.DocStore):
     def get_documents(self, tx: any, sample_size: int) -> List[vtapi.Document]:
         pg_tx = dreampg.to_tx(tx)
 
-        ims: List[model.Image] = sample_im_metadata(pg_tx)
+        ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size)
         docs: List[vtapi.Document] = []
 
         for im in ims:
@@ -46,7 +46,7 @@ class ImageStore(vtapi.DocStore):
         (_, descriptor) = self._sift.detectAndCompute(mat_gray, None)
 
         vecs = list(descriptor)
-        return vtapi.Document(id=im_with_mat.id, vectors=vecs)
+        return vtapi.Document(doc_id=im_with_mat.id, vectors=vecs)
 
     def get_feature_dim(self) -> int:
         return self._SIFT_DESCRIPTOR_DIM

@@ -17,7 +17,7 @@ class SeedController:
     def run(self) -> None:
         with tqdm(total=self._ds_iter.len()) as pbar:
             while self._ds_iter.next():
-                im = self._ds_iter.read()
-                self._semsearch_svc.seed_image(im)
+                image = self._ds_iter.read()
+                self._semsearch_svc.seed_image(image)
 
                 pbar.update(1)

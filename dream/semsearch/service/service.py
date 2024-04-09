@@ -1,6 +1,5 @@
 import abc
-from typing import Callable, List
-import uuid
+from typing import Callable
 
 import dream.voctree.api as vtapi
 from dream import model
@@ -48,5 +47,5 @@ class SemSearchService:
 
         self._store.atomically(_cb)
 
-    def query(self, sentence: str, n: int) -> List[uuid.UUID]:
-        return []
+    # def query(self, sentence: str, n: int) -> List[uuid.UUID]:
+    #     return []

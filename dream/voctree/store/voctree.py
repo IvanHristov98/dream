@@ -5,7 +5,7 @@ import json
 import psycopg
 
 import dream.voctree.model as vtmodel
-import dream.voctree.service as service
+from dream.voctree import service
 import dream.pg as dreampg
 import dream.voctree.store.model as storemodel
 import dream.voctree.api as vtapi
@@ -15,17 +15,17 @@ _MAX_TREE_COUNT = 2
 
 
 class ErrTreeCountOverflow(Exception):
-    f"""
-    ErrTreeCountOverflow is thrown when more than {_MAX_TREE_COUNT} trees are attempted to be added.
+    """
+    ErrTreeCountOverflow is thrown when more than the maximum number of trees are attempted to be added.
     """
 
 
 class JSONEncoder(json.JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, storemodel.PersistedFeature):
-            return obj.__dict__
+    def default(self, o: Any) -> Any:
+        if isinstance(o, storemodel.PersistedFeature):
+            return o.__dict__
 
-        return json.JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, o)
 
 
 class VocabularyTreeStore(service.VocabularyTreeStore):
@@ -141,14 +141,14 @@ class VocabularyTreeStore(service.VocabularyTreeStore):
         )
         return self._read_node(pg_tx)
 
-    def get_node(self, tx: any, id: uuid.UUID) -> Optional[vtmodel.Node]:
-        return self._get_node(tx, id)
+    def get_node(self, tx: any, node_id: uuid.UUID) -> Optional[vtmodel.Node]:
+        return self._get_node(tx, node_id)
 
-    def _get_node(self, pg_tx: psycopg.Cursor, id: uuid.UUID) -> Optional[vtmodel.Node]:
+    def _get_node(self, pg_tx: psycopg.Cursor, node_id: uuid.UUID) -> Optional[vtmodel.Node]:
         pg_tx.execute(
             f"""SELECT id, tree_id, depth, vec, children, features
             FROM {self._node_table} WHERE id=%s""",
-            (id,),
+            (node_id,),
         )
         return self._read_node(pg_tx)
 
