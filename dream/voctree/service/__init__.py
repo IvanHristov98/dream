@@ -3,4 +3,5 @@ from dream.voctree.service.voctree import (
     FrequencyStore,  # noqa
     TxStore,  # noqa
     VocabularyTree,  # noqa
+    TreeReaper,  # noqa
 )

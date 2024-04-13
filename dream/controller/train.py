@@ -1,31 +1,24 @@
 from typing import NamedTuple
 import time
 import os
-
-from multiprocessing import Process
+from threading import Thread
 
 import dream.voctree.api as vtapi
 
 
-_TRAIN_SLEEP_DURATION = 30.0
-_REPLACE_TREE_SLEEP_DURATION = 180.0
-
-
 class TrainConfig(NamedTuple):
     vtree_train_proc_count: int
-    ims_sample_size: int
-    captions_sample_size: int
 
 
 def parse_train_cfg() -> TrainConfig:
-    vtree_train_proc_count = os.getenv("VTREE_TRAIN_PROC_COUNT", "")
-    ims_sample_size = os.getenv("IMS_SAMPLE_SIZE", "")
-    captions_sample_size = os.getenv("CAPTIONS_SAMPLE_SIZE", "")
-
-    return TrainConfig(vtree_train_proc_count, ims_sample_size, captions_sample_size)
+    vtree_train_proc_count = int(os.getenv("VTREE_TRAIN_PROC_COUNT", "1"))
+    return TrainConfig(vtree_train_proc_count)
 
 
 class TrainController:
+    _TRAIN_SLEEP_DURATION = 30.0
+    _REPLACE_TREE_SLEEP_DURATION = 180.0
+
     _captions_vtree: vtapi.VocabularyTree
     _ims_vtree: vtapi.VocabularyTree
     _cfg: TrainConfig
@@ -46,17 +39,16 @@ class TrainController:
         def train(vtree: vtapi.VocabularyTree) -> None:
             while True:
                 vtree.try_training()
-                time.sleep(_TRAIN_SLEEP_DURATION)
+                time.sleep(self._TRAIN_SLEEP_DURATION)
 
-        for _ in range(self._cfg.vtree_train_proc_count):
-            proc = Process(target=train, args=(vtree,))
-            proc.start()
+        thread = Thread(target=train, args=(vtree,))
+        thread.start()
 
     def _run_tree_replacers(self, vtree: vtapi.VocabularyTree) -> None:
         def replace_tree(vtree: vtapi.VocabularyTree) -> None:
             while True:
                 vtree.try_replace_blue_tree()
-                time.sleep(_REPLACE_TREE_SLEEP_DURATION)
+                time.sleep(self._REPLACE_TREE_SLEEP_DURATION)
 
-        proc = Process(target=replace_tree, args=(vtree,))
-        proc.start()
+        thread = Thread(target=replace_tree, args=(vtree,))
+        thread.start()

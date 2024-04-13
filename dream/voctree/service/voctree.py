@@ -59,16 +59,9 @@ class VocabularyTreeStore(abc.ABC):
         """
         raise NotImplementedError("")
 
-    def cleanup(self, tx: any) -> None:
-        """
-        cleanup removes any obsolete nodes once training is complete.
-        It aims to keep only one active tree.
-        """
-        raise NotImplementedError("")
-
 
 class FrequencyStore(abc.ABC):
-    def set_term(self, tx: any, term_id: uuid.UUID, frequencies: Dict[uuid.UUID, int]) -> None:
+    def set_term(self, tx: any, term_id: uuid.UUID, frequencies: Dict[uuid.UUID, int], tree_id: uuid.UUID) -> None:
         """
         set_term stores how many times a term (a node) is found (reached) for each document (i.e. tf) and
         in how many unique documents it is found (i.e. df).
@@ -102,6 +95,15 @@ class FrequencyStore(abc.ABC):
         raise NotImplementedError("")
 
 
+class TreeReaper(abc.ABC):
+    def reap_deprecated_trees(self, tx: any) -> None:
+        """
+        cleanup removes all information stored in relation to deprecated trees, including the trees themselves.
+        The goal is to reduce disk usage.
+        """
+        raise NotImplementedError("")
+
+
 class TxStore(abc.ABC):
     def in_tx(self, cb: Callable[[any], None]) -> None:
         raise NotImplementedError("")
@@ -123,18 +125,22 @@ class VocabularyTree(vtapi.VocabularyTree):
     _doc_store: vtapi.DocStore
     _tree_store: VocabularyTreeStore
     _freq_store: FrequencyStore
+    _tree_reaper: TreeReaper
 
-    def __init__(  # noqa # it is a constructor so it should be fine
+    # pylint: disable-next=too-many-arguments
+    def __init__(
         self,
         tx_store: TxStore,
         doc_store: vtapi.DocStore,
         tree_store: VocabularyTreeStore,
         freq_store: FrequencyStore,
+        tree_reaper: TreeReaper,
     ) -> None:
         self._tx_store = tx_store
         self._doc_store = doc_store
         self._tree_store = tree_store
         self._freq_store = freq_store
+        self._tree_reaper = tree_reaper
 
     def start_training(self, sample_size: int) -> None:
         """
@@ -166,7 +172,7 @@ class VocabularyTree(vtapi.VocabularyTree):
             for doc in docs:
                 frequencies[doc.id] = len(doc.vectors)
 
-            self._freq_store.set_term(tx, root.id, frequencies)
+            self._freq_store.set_term(tx, root.id, frequencies, root.tree_id)
 
             self._freq_store.set_doc_counts(tx, root.tree_id, docs_count=len(docs))
 
@@ -205,7 +211,7 @@ class VocabularyTree(vtapi.VocabularyTree):
             worked = True
 
             self._on_train_job(tx, train_job)
-            self._tree_store.pop_train_job(tx, train_job)
+            self._tree_store.pop_train_job(tx, train_job.id)
 
         self._tx_store.in_tx(_cb)
         return worked
@@ -219,15 +225,15 @@ class VocabularyTree(vtapi.VocabularyTree):
         children = self._get_children(parent)
         self._assign_children(parent, children)
 
-        for child in children:
+        for child in children.values():
             self._tree_store.add_node(tx, child)
 
             doc_frequencies = self._get_document_frequencies(child)
-            self._freq_store.set_term(tx, child.id, doc_frequencies)
+            self._freq_store.set_term(tx, child.id, doc_frequencies, train_job.added_node.tree_id)
 
         self._tree_store.update_node(tx, parent)
 
-    def _get_children(self, parent: vtmodel.Node) -> List[vtmodel.Node]:
+    def _get_children(self, parent: vtmodel.Node) -> Dict[int, vtmodel.Node]:
         vecs = self._get_features_vecs(parent.features)
         kmeans = skcluster.KMeans(init="k-means++", n_clusters=self._NUM_CLUSTERS, n_init="auto").fit(
             np.array(vecs),
@@ -242,9 +248,9 @@ class VocabularyTree(vtapi.VocabularyTree):
         for i, label in enumerate(kmeans.labels_):
             if label not in children:
                 child_vec = kmeans.cluster_centers_[label]
-                children[i] = vtmodel.Node(uuid.uuid4(), parent.tree_id, parent.depth + 1, child_vec)
+                children[label] = vtmodel.Node(uuid.uuid4(), parent.tree_id, parent.depth + 1, child_vec)
 
-            children[i].features.append(parent.features[i])
+            children[label].features.append(parent.features[i])
 
         return children
 
@@ -280,7 +286,7 @@ class VocabularyTree(vtapi.VocabularyTree):
         """
 
         def _cb(tx: any) -> None:
-            self._tree_store.cleanup(tx)
+            self._tree_reaper.reap_deprecated_trees(tx)
 
         self._tx_store.in_tx(_cb)
 

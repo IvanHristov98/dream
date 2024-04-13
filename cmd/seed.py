@@ -11,7 +11,7 @@ def main() -> None:
     dreamlogging.configure_logging()
     args = _parse_args()
 
-    ds_iter = dataset.Coco2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
+    ds_iter = dataset.COCO2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
 
     _, _, semsearch_svc = semsearch.new_svc(args.imstore_ims_path)
 

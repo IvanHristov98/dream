@@ -17,7 +17,8 @@ _DIMS = 50
 
 @given("a vocabulary tree store instance")
 def step_impl(context):
-    context.vt_store = store.VocabularyTreeStore("test_tree", "test_node", "test_train_job")
+    tables = store.TableConfig("test")
+    context.vt_store = store.VocabularyTreeStore(tables)
 
 
 @given("{tree_name} tree is created")
@@ -143,17 +144,6 @@ def step_impl(context, node_name):
         train_job: vtmodel.TrainJob = context.train_jobs[node_name]
 
         vt_store.pop_train_job(tx, train_job.id)
-
-    dreampg.with_tx(context.conn_pool, _cb)
-
-
-@given("cleanup is performed")
-def step_impl(context):
-    def _cb(tx: Any) -> None:
-        nonlocal context
-
-        vt_store: store.VocabularyTreeStore = context.vt_store
-        vt_store.cleanup(tx)
 
     dreampg.with_tx(context.conn_pool, _cb)
 

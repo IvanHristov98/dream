@@ -24,12 +24,16 @@ CREATE TABLE IF NOT EXISTS captions_tf (
 	term_id UUID NOT NULL,
 	doc_id UUID NOT NULL,
 	frequency INT NOT NULL,
+	tree_id UUID NOT NULL,
+	CONSTRAINT captions_tf_tree_id_fk FOREIGN KEY (tree_id) REFERENCES captions_tree(id),
 	PRIMARY KEY (term_id, doc_id)
 );
 CREATE TABLE IF NOT EXISTS captions_df (
 	term_id UUID PRIMARY KEY,
 	unique_docs_count INT NOT NULL,
-	total_tf INT NOT NULL
+	total_tf INT NOT NULL,
+	tree_id UUID NOT NULL,
+	CONSTRAINT captions_df_tree_id_fk FOREIGN KEY (tree_id) REFERENCES captions_tree(id)
 );
 CREATE TABLE IF NOT EXISTS captions_tree_doc_count (
 	tree_id UUID PRIMARY KEY,
@@ -60,12 +64,16 @@ CREATE TABLE IF NOT EXISTS ims_tf (
 	term_id UUID NOT NULL,
 	doc_id UUID NOT NULL,
 	frequency INT NOT NULL,
+	tree_id UUID NOT NULL,
+	CONSTRAINT frequency_tf_tree_id_fk FOREIGN KEY (tree_id) REFERENCES frequency_tree(id),
 	PRIMARY KEY (term_id, doc_id)
 );
 CREATE TABLE IF NOT EXISTS ims_df (
 	term_id UUID PRIMARY KEY,
 	unique_docs_count INT NOT NULL,
-	total_tf INT NOT NULL
+	total_tf INT NOT NULL,
+	tree_id UUID NOT NULL,
+	CONSTRAINT ims_df_tree_id_fk FOREIGN KEY (tree_id) REFERENCES ims_tree(id)
 );
 CREATE TABLE IF NOT EXISTS ims_tree_doc_count (
 	tree_id UUID PRIMARY KEY,

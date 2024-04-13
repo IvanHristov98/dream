@@ -3,7 +3,10 @@ from typing import List
 
 import numpy as np
 
-import dream.voctree.model as rsmodel
+import dream.voctree.model as vtmodel
+
+
+MAX_TREE_COUNT = 2
 
 
 class PersistedFeature:
@@ -15,18 +18,18 @@ class PersistedFeature:
         self.vec = vec
 
 
-def to_persisted_feature(feature: rsmodel.Feature) -> PersistedFeature:
+def to_persisted_feature(feature: vtmodel.Feature) -> PersistedFeature:
     p_doc_id = feature.doc_id.hex
     p_vec = feature.vec.tolist()
 
     return PersistedFeature(p_doc_id, p_vec)
 
 
-def to_feature(persisted: PersistedFeature) -> rsmodel.Feature:
+def to_feature(persisted: PersistedFeature) -> vtmodel.Feature:
     doc_id = uuid.UUID(persisted["doc_id"])
     vec = np.array(persisted["vec"], dtype=np.float32)
 
-    return rsmodel.Feature(doc_id, vec)
+    return vtmodel.Feature(doc_id, vec)
 
 
 class PersistedNode:
@@ -55,7 +58,7 @@ class PersistedNode:
         self.features = features
 
 
-def to_persisted_node(node: rsmodel.Node) -> PersistedNode:
+def to_persisted_node(node: vtmodel.Node) -> PersistedNode:
     p_node_id = node.id
     p_tree_id = node.tree_id
     p_vec = node.vec.tolist()
@@ -74,10 +77,10 @@ def to_persisted_node(node: rsmodel.Node) -> PersistedNode:
     return PersistedNode(p_node_id, p_tree_id, node.depth, p_vec, p_children, p_features)
 
 
-def to_node(p_node: PersistedNode) -> rsmodel.Node:
+def to_node(p_node: PersistedNode) -> vtmodel.Node:
     vec = np.array(p_node.vec, dtype=np.float32)
 
-    node = rsmodel.Node(p_node.id, p_node.tree_id, p_node.depth, vec)
+    node = vtmodel.Node(p_node.id, p_node.tree_id, p_node.depth, vec)
 
     for p_child_id in p_node.children:
         node.children.add(uuid.UUID(p_child_id))
@@ -87,3 +90,28 @@ def to_node(p_node: PersistedNode) -> rsmodel.Node:
         node.features.append(feature)
 
     return node
+
+
+class TableConfig:
+    _prefix: str
+
+    def __init__(self, prefix: str) -> None:
+        self._prefix = prefix
+
+    def tf_table(self) -> str:
+        return f"{self._prefix}_tf"
+
+    def df_table(self) -> str:
+        return f"{self._prefix}_df"
+
+    def tree_doc_count_table(self) -> str:
+        return f"{self._prefix}_tree_doc_count"
+
+    def tree_table(self) -> str:
+        return f"{self._prefix}_tree"
+
+    def node_table(self) -> str:
+        return f"{self._prefix}_node"
+
+    def train_job_table(self) -> str:
+        return f"{self._prefix}_train_job"

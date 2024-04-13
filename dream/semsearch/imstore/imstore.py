@@ -1,4 +1,5 @@
 from pathlib import Path
+import uuid
 
 import cv2 as cv
 
@@ -38,5 +39,5 @@ class MatrixLoader(imdocstore.MatrixLoader):
         return im.with_mat(mat)
 
 
-def _im_path(ims_path: Path, im_id: model.ImageID) -> Path:
+def _im_path(ims_path: Path, im_id: uuid.UUID) -> Path:
     return Path(ims_path, f"{str(im_id)}.{_JPG_EXT}")

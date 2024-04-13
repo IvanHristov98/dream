@@ -67,10 +67,12 @@ def _create_train_job_table(tx: psycopg.Cursor) -> None:
 def _create_tf_table(tx: psycopg.Cursor) -> None:
     tx.execute(
         """CREATE TABLE IF NOT EXISTS test_tf (
-        term_id UUID NOT NULL,
-        doc_id UUID NOT NULL,
+        term_id   UUID NOT NULL,
+        doc_id    UUID NOT NULL,
         frequency INT NOT NULL,
+        tree_id   UUID NOT NULL,
 
+        CONSTRAINT test_tf_tree_id_fk FOREIGN KEY (tree_id) REFERENCES test_tree(id),
         PRIMARY KEY (term_id, doc_id));"""
     )
 
@@ -80,7 +82,11 @@ def _create_df_table(tx: psycopg.Cursor) -> None:
         """CREATE TABLE IF NOT EXISTS test_df (
         term_id           UUID PRIMARY KEY,
 	    unique_docs_count INT NOT NULL,
-	    total_tf          INT NOT NULL);"""
+	    total_tf          INT NOT NULL,
+        tree_id           UUID NOT NULL,
+
+	    CONSTRAINT test_df_tree_id_fk FOREIGN KEY (tree_id) REFERENCES test_tree(id)
+        );"""
     )
 
 

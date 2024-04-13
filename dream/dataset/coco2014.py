@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict, List
+import uuid
 
 import cv2 as cv
 
@@ -63,7 +64,7 @@ class COCO2014Iterator(dataset.DatasetIterator):
 
         return (
             model.Image()
-            .with_id(model.new_image_id())
+            .with_id(uuid.uuid4())
             .with_mat(mat)
             .with_dataset(self._DATASET_NAME)
             .with_captions(im_metadata.captions)

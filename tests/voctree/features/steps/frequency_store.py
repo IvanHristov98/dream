@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from behave import *
 from hamcrest import assert_that, is_, none, equal_to, not_, has_key
@@ -11,7 +11,8 @@ import dream.voctree.model as vtmodel
 
 @given("a frequency store instance")
 def step_impl(context):
-    context.freq_store = store.FrequencyStore("test_tf", "test_df", "test_tree_doc_count")
+    tables = store.TableConfig("test")
+    context.freq_store = store.FrequencyStore(tables)
 
 
 @given("term {term_name} is created")
@@ -30,8 +31,8 @@ def step_impl(context, doc_name):
     context.docs[doc_name] = uuid.uuid4()
 
 
-@given("frequencies for term {term_name} are inserted")
-def step_impl(context, term_name):
+@given("frequencies for term {term_name} are inserted in {tree_name} tree")
+def step_impl(context, term_name, tree_name):
     term_id = context.terms[term_name]
     frequencies: Dict[uuid.UUID, int] = dict()
 
@@ -39,11 +40,13 @@ def step_impl(context, term_name):
         doc_id = context.docs[row["doc"]]
         frequencies[doc_id] = int(row["frequency"])
 
+    tree_id: uuid.UUID = context.trees[tree_name]
+
     def _cb(tx: Any) -> None:
         nonlocal context
 
         freq_store: store.FrequencyStore = context.freq_store
-        freq_store.set_term(tx, term_id, frequencies)
+        freq_store.set_term(tx, term_id, frequencies, tree_id)
 
     dreampg.with_tx(context.conn_pool, _cb)
 

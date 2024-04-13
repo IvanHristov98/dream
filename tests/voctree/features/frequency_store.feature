@@ -9,6 +9,8 @@ Feature: Frequency store
         And document a is created
         And document b is created
         And document c is created
+        And green tree is created
+        And green tree is inserted
 
     @db.cleanup
     Scenario: Getting DF of missing term
@@ -17,7 +19,7 @@ Feature: Frequency store
 
     @db.cleanup
     Scenario: Getting DF of existing term
-        Given frequencies for term foo are inserted
+        Given frequencies for term foo are inserted in green tree
             | doc | frequency |
             | a   | 20        |
             | b   | 105       |
@@ -28,7 +30,7 @@ Feature: Frequency store
     
     @db.cleanup
     Scenario: Getting TFs of existing term
-        Given frequencies for term foo are inserted
+        Given frequencies for term foo are inserted in green tree
             | doc | frequency |
             | a   | 21        |
             | b   | 135       |
@@ -41,17 +43,15 @@ Feature: Frequency store
 
     @db.cleanup
     Scenario: Getting tree document count when not inserted
-        Given green tree is created
         When getting documents count of green tree
         Then it has no docs in tree
 
     @db.cleanup
     Scenario: Getting tree document count when inserted
-        Given green tree is created
-        And blue tree is created
-        And green tree is inserted
+        Given blue tree is created
         And blue tree is inserted
         And documents count 15 is inserted for blue tree
         And documents count 1500 is inserted for green tree
         When getting documents count of green tree
         Then it has 1500 docs in tree
+        

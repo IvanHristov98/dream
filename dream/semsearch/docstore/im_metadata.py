@@ -32,12 +32,12 @@ def _get_im_count(pg_tx: psycopg.Cursor) -> int:
 
 def _load_im_metadata(pg_tx: psycopg.Cursor, sample_size: int, im_count: int) -> List[model.Image]:
     pg_tx.execute(
-        f"SELECT id, labels, dataset FROM image_metadata TABLESAMPLE BERNOULLI (({sample_size}*100/{im_count}));",
+        f"SELECT id, captions, dataset FROM image_metadata TABLESAMPLE BERNOULLI (({sample_size}*100/{im_count}));",
     )
     ims = []
 
     for row in pg_tx.fetchall():
-        im = model.Image().with_id(model.ImageID(row[0])).with_dataset(row[2]).with_captions(row[1])
+        im = model.Image().with_id(row[0]).with_dataset(row[2]).with_captions(row[1])
         ims.append(im)
 
     return ims

@@ -2,37 +2,13 @@
 Module image provides image models to be used across the whole project.
 """
 import uuid
-from typing import NamedTuple, List
+from typing import List
 
 import numpy as np
 
 
-class ImageID(NamedTuple):
-    """
-    ImageID represents an ImageID. It could be used for comparison.
-    """
-
-    id: uuid.UUID
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __eq__(self, other: "ImageID"):
-        return self.id == other.id
-
-    def __str__(self) -> str:
-        return str(self.id)
-
-
 # NoImageID should be treated as a constant.
-NoImageID = ImageID(id=uuid.UUID(int=0))
-
-
-def new_image_id() -> ImageID:
-    """
-    new_image_id returns a random ImageID.
-    """
-    return ImageID(uuid.uuid4())
+NoImageID = uuid.UUID(int=0)
 
 
 class Image:
@@ -40,7 +16,7 @@ class Image:
     Image represents an image with its ID, description and matrix.
     """
 
-    id: ImageID
+    id: uuid.UUID
     captions: List[str]
     mat: np.ndarray
     dataset: str
@@ -48,7 +24,7 @@ class Image:
     def __init__(self) -> None:
         self.captions = []
 
-    def with_id(self, im_id: ImageID) -> "Image":
+    def with_id(self, im_id: uuid.UUID) -> "Image":
         self.id = im_id
         return self
 

@@ -26,6 +26,7 @@ def main() -> None:
     app = flask.Flask(__name__)
 
     restapi.register_train_endpoint(app, captions_vtree, ims_vtree)
+    app.run(host="0.0.0.0", port=5000, debug=False)
 
 
 def _parse_cfg() -> Config:

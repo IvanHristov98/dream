@@ -46,3 +46,8 @@ test:
 
 test-wip:
 	@cd tests/voctree && PYTHONPATH="${PYTHONPATH}:${PWD}" behave -w && cd -
+
+run-server:
+	@VTREE_TRAIN_PROC_COUNT=1 \
+		IM_STORE_PATH="$(PWD)/tmp/imstore" \
+		python3 cmd/server.py

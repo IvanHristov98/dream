@@ -18,17 +18,25 @@ def new_svc(
     tx_store = vtstore.TxStore(pool)
 
     captions_doc_store = docstore.CaptionStore()
-    captions_vt_store = vtstore.VocabularyTreeStore("captions_tree", "captions_node", "captions_train_job")
-    captions_freq_store = vtstore.FrequencyStore("captions_tf", "captions_df", "captions_tree_doc_count")
 
-    captions_vtree = vtservice.VocabularyTree(tx_store, captions_doc_store, captions_vt_store, captions_freq_store)
+    captions_tables = vtstore.TableConfig("captions")
+    captions_vt_store = vtstore.VocabularyTreeStore(captions_tables)
+    captions_freq_store = vtstore.FrequencyStore(captions_tables)
+    captions_tree_reaper = vtstore.TreeReaper(captions_tables)
+
+    captions_vtree = vtservice.VocabularyTree(
+        tx_store, captions_doc_store, captions_vt_store, captions_freq_store, captions_tree_reaper
+    )
 
     mat_loader = imstore.MatrixLoader(imstore_ims_path)
     ims_doc_store = docstore.ImageStore(mat_loader)
-    ims_vt_store = vtstore.VocabularyTreeStore("ims_tree", "ims_node", "ims_train_job")
-    ims_freq_store = vtstore.FrequencyStore("ims_tf", "ims_df", "ims_tree_doc_count")
 
-    ims_vtree = vtservice.VocabularyTree(tx_store, ims_doc_store, ims_vt_store, ims_freq_store)
+    ims_tables = vtstore.TableConfig("ims")
+    ims_vt_store = vtstore.VocabularyTreeStore(ims_tables)
+    ims_freq_store = vtstore.FrequencyStore(ims_tables)
+    ims_tree_reaper = vtstore.TreeReaper(ims_tables)
+
+    ims_vtree = vtservice.VocabularyTree(tx_store, ims_doc_store, ims_vt_store, ims_freq_store, ims_tree_reaper)
 
     im_store = imstore.ImageStore(imstore_ims_path)
     semsearch_store = semsearchstore.Store(pool)
