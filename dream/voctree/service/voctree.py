@@ -160,14 +160,14 @@ class VocabularyTree(vtapi.VocabularyTree):
             root = vtmodel.Node(uuid.uuid4(), tree_id, self._START_DEPTH, root_vec)
 
             docs = self._doc_store.get_documents(tx, sample_size)
-            logging.info(f"fetched {len(docs)} documents")
+            logging.info("fetched %d documents", len(docs))
             root.features = self._docs_to_features(docs)
 
             # TODO: What happens when more than two trees are added -> Raise exception.
             self._tree_store.add_node(tx, root)
-            logging.info(f"pushed root node {root.id}")
+            logging.info("pushed root node %s", root.id)
             self._tree_store.push_train_job(tx, vtmodel.TrainJob(job_id=uuid.uuid4(), added_node=root))
-            logging.info(f"added train job for root node {root.id}")
+            logging.info("added train job for root node %s", root.id)
 
             # A term (node) is in a document if a feature of that document is in the node.
             # The term frequency for a given document is the number of features of a given
@@ -181,7 +181,7 @@ class VocabularyTree(vtapi.VocabularyTree):
 
             self._freq_store.set_doc_counts(tx, root.tree_id, docs_count=len(docs))
 
-            logging.info(f"stored frequency info for root node {root.id}")
+            logging.info("stored frequency info for root node %s", root.id)
 
         self._tx_store.in_tx(_cb)
 
