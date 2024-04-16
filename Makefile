@@ -51,3 +51,9 @@ run-server:
 	@VTREE_TRAIN_PROC_COUNT=1 \
 		IM_STORE_PATH="$(PWD)/tmp/imstore" \
 		python3 cmd/server.py
+
+seed:
+	@python3 cmd/seed.py  \
+		-coco2014-captions-path="$(PWD)/data/coco2014/captions_train2014.json" \
+		-coco2014-ims-path="$(PWD)/data/coco2014/train2014" \
+		-imstore-ims-path="$(PWD)/tmp/imstore"

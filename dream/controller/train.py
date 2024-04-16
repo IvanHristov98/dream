@@ -38,7 +38,10 @@ class TrainController:
     def _start_train_workers(self, vtree: vtapi.VocabularyTree) -> None:
         def train(vtree: vtapi.VocabularyTree) -> None:
             while True:
-                vtree.try_training()
+                worked = True
+                while worked:
+                    worked = vtree.try_training()
+
                 time.sleep(self._TRAIN_SLEEP_DURATION)
 
         thread = Thread(target=train, args=(vtree,))

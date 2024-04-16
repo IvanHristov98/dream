@@ -16,6 +16,7 @@ class MatrixLoader(abc.ABC):
 
 class ImageStore(vtapi.DocStore):
     _SIFT_DESCRIPTOR_DIM = 128
+    _MAX_FEATURES_PER_IM = 150
 
     _sift: cv.SIFT
     _mat_loader: MatrixLoader
@@ -23,7 +24,7 @@ class ImageStore(vtapi.DocStore):
     def __init__(self, mat_loader) -> None:
         super().__init__()
 
-        self._sift = cv.SIFT_create()
+        self._sift = cv.SIFT_create(self._MAX_FEATURES_PER_IM)
         self._mat_loader = mat_loader
 
     def get_documents(self, tx: any, sample_size: int) -> List[vtapi.Document]:

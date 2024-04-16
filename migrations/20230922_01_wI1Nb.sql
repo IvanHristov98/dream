@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS ims_tf (
 	doc_id UUID NOT NULL,
 	frequency INT NOT NULL,
 	tree_id UUID NOT NULL,
-	CONSTRAINT frequency_tf_tree_id_fk FOREIGN KEY (tree_id) REFERENCES frequency_tree(id),
+	CONSTRAINT ims_tf_tree_id_fk FOREIGN KEY (tree_id) REFERENCES ims_tree(id),
 	PRIMARY KEY (term_id, doc_id)
 );
 CREATE TABLE IF NOT EXISTS ims_df (

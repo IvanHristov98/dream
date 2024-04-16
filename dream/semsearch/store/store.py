@@ -26,5 +26,5 @@ class Store(semsearchservice.Store):
 
         tx.execute(
             "INSERT INTO image_metadata (id, captions, dataset) VALUES(%s, %s, %s);",
-            (im.id.id, persisted_captions, im.dataset),
+            (im.id, persisted_captions, im.dataset),
         )

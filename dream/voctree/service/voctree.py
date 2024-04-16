@@ -2,6 +2,7 @@ import abc
 import uuid
 from typing import Callable, List, Optional, Dict, Tuple
 import math
+import logging
 
 import sklearn.cluster as skcluster
 import numpy as np
@@ -118,6 +119,7 @@ class VocabularyTree(vtapi.VocabularyTree):
     # Recommended values from the paper are 10 clusters and 6 levels.
     _NUM_CLUSTERS = 8
     _NUM_LEVELS = 4
+    _MIN_SAMPLES = 50
     # TODO: Fine tune tf_idf threshold.
     _TF_IDF_THRESHOLD = 0.05
 
@@ -158,11 +160,14 @@ class VocabularyTree(vtapi.VocabularyTree):
             root = vtmodel.Node(uuid.uuid4(), tree_id, self._START_DEPTH, root_vec)
 
             docs = self._doc_store.get_documents(tx, sample_size)
+            logging.info(f"fetched {len(docs)} documents")
             root.features = self._docs_to_features(docs)
 
             # TODO: What happens when more than two trees are added -> Raise exception.
             self._tree_store.add_node(tx, root)
+            logging.info(f"pushed root node {root.id}")
             self._tree_store.push_train_job(tx, vtmodel.TrainJob(job_id=uuid.uuid4(), added_node=root))
+            logging.info(f"added train job for root node {root.id}")
 
             # A term (node) is in a document if a feature of that document is in the node.
             # The term frequency for a given document is the number of features of a given
@@ -175,6 +180,8 @@ class VocabularyTree(vtapi.VocabularyTree):
             self._freq_store.set_term(tx, root.id, frequencies, root.tree_id)
 
             self._freq_store.set_doc_counts(tx, root.tree_id, docs_count=len(docs))
+
+            logging.info(f"stored frequency info for root node {root.id}")
 
         self._tx_store.in_tx(_cb)
 
@@ -223,18 +230,25 @@ class VocabularyTree(vtapi.VocabularyTree):
 
         parent = train_job.added_node
         children = self._get_children(parent)
+        if children is None:
+            return
+
         self._assign_children(parent, children)
 
         for child in children.values():
             self._tree_store.add_node(tx, child)
+            self._tree_store.push_train_job(tx, vtmodel.TrainJob(job_id=uuid.uuid4(), added_node=child))
 
             doc_frequencies = self._get_document_frequencies(child)
             self._freq_store.set_term(tx, child.id, doc_frequencies, train_job.added_node.tree_id)
 
         self._tree_store.update_node(tx, parent)
 
-    def _get_children(self, parent: vtmodel.Node) -> Dict[int, vtmodel.Node]:
+    def _get_children(self, parent: vtmodel.Node) -> Optional[Dict[int, vtmodel.Node]]:
         vecs = self._get_features_vecs(parent.features)
+        if len(vecs) < self._MIN_SAMPLES:
+            return None
+
         kmeans = skcluster.KMeans(init="k-means++", n_clusters=self._NUM_CLUSTERS, n_init="auto").fit(
             np.array(vecs),
         )

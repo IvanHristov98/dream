@@ -17,7 +17,7 @@ def sample_im_metadata(pg_tx: psycopg.Cursor, sample_size: int) -> List[model.Im
         )
         sample_size = im_count
 
-    if sample_size / im_count < 1:
+    if sample_size / im_count < 0.01:
         logging.warning("sample_size must be >= 1% of the total number of images, setting it to 1%")
         sample_size = im_count / 100 + 1
 
