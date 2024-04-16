@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict, List
+import uuid
 
 import cv2 as cv
 
@@ -13,8 +14,8 @@ class ImageMetadata:
     file_name: str
     captions: List[str]
 
-    def __init__(self, id: int, file_name: str) -> None:
-        self.id = id
+    def __init__(self, im_id: int, file_name: str) -> None:
+        self.id = im_id
         self.file_name = file_name
         self.captions = []
 
@@ -22,7 +23,7 @@ class ImageMetadata:
         self.captions.append(caption)
 
 
-class Coco2014Iterator(dataset.DatasetIterator):
+class COCO2014Iterator(dataset.DatasetIterator):
     _DATASET_NAME = "coco2014"
 
     _ims_path: Path
@@ -34,10 +35,10 @@ class Coco2014Iterator(dataset.DatasetIterator):
 
         self._ims_path = ims_path
 
-        with open(captions_path) as captions_file:
+        with open(captions_path, encoding="utf-8") as captions_file:
             captions = json.load(captions_file)
 
-        captioned_ims: Dict[int, ImageMetadata] = dict()
+        captioned_ims: Dict[int, ImageMetadata] = {}
 
         for image in captions["images"]:
             captioned_ims[image["id"]] = ImageMetadata(image["id"], image["file_name"])
@@ -63,10 +64,10 @@ class Coco2014Iterator(dataset.DatasetIterator):
 
         return (
             model.Image()
-            .with_id(model.new_image_id())
+            .with_id(uuid.uuid4())
             .with_mat(mat)
             .with_dataset(self._DATASET_NAME)
-            .with_labels(im_metadata.captions)
+            .with_captions(im_metadata.captions)
         )
 
     def len(self) -> int:

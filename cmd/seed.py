@@ -1,31 +1,21 @@
 import argparse
 from pathlib import Path
 
-import dream.revsearch.store as revsearchstore
-import dream.revsearch.service as revsearchservice
-import dream.revsearch.imstore as revsearchimstore
-from dream.revsearch import featureextractor
 from dream.controller import seed
 from dream import dataset
 from dream import logging as dreamlogging
-from dream import db as dreamdb
+from dream import semsearch
 
 
 def main() -> None:
     dreamlogging.configure_logging()
     args = _parse_args()
 
-    ds_iter = dataset.Coco2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
+    ds_iter = dataset.COCO2014Iterator(Path(args.coco2014_captions_path), Path(args.coco2014_ims_path))
 
-    pool = dreamdb.new_pool()
+    _, _, semsearch_svc = semsearch.new_svc(args.imstore_ims_path)
 
-    store = revsearchstore.Store(pool)
-    im_store = revsearchimstore.FSImageStore(args.imstore_ims_path)
-    feature_extractor = featureextractor.SiftExtractor()
-
-    vtree = revsearchservice.VocabularyTree(store, im_store, feature_extractor)
-
-    ctl = seed.SeedController(vtree, ds_iter)
+    ctl = seed.SeedController(semsearch_svc, ds_iter)
     ctl.run()
 
 
