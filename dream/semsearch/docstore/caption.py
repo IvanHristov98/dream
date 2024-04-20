@@ -11,6 +11,7 @@ from dream.semsearch.docstore.im_metadata import sample_im_metadata
 
 class CaptionStore(vtapi.DocStore):
     _DIM_SIZE = 384
+    _DOC_STORE = "captions"
 
     _transformer: SentenceTransformer
 
@@ -22,7 +23,7 @@ class CaptionStore(vtapi.DocStore):
     def sample_next_documents(self, tx: any, sample_size: int, tree_id: uuid.UUID) -> List[vtapi.Document]:
         pg_tx = dreampg.to_tx(tx)
 
-        ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size)
+        ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size, tree_id, self._DOC_STORE)
         docs: List[vtapi.Document] = []
 
         for im in ims:

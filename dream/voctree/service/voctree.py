@@ -327,10 +327,11 @@ class VocabularyTree(vtapi.VocabularyTree):
             visited_leafs: Set[uuid.UUID] = set()
 
             for doc in docs:
-                self._try_populate_doc(tx, nodes_cache, visited_leafs, doc)
+                doc_leafs = self._try_populate_doc(tx, nodes_cache, root, doc)
+                visited_leafs = visited_leafs.union(doc_leafs)
 
             for visited_leaf in visited_leafs:
-                self._update_visited_leaf(tx, nodes_cache, nodes_cache[visited_leaf])
+                self._update_visited_leaf(tx, nodes_cache[visited_leaf])
 
             worked = True
 
@@ -341,10 +342,11 @@ class VocabularyTree(vtapi.VocabularyTree):
         self,
         tx: any,
         nodes_cache: Dict[uuid.UUID, vtmodel.Node],
-        visited_leafs: Set[uuid.UUID],
         root: vtmodel.Node,
         doc: vtapi.Document,
-    ) -> None:
+    ) -> Set[uuid.UUID]:
+        visited_leafs: Set[uuid.UUID] = set()
+
         def _on_visit_fn(node: vtmodel.Node, vec: np.ndarray) -> None:
             nonlocal visited_leafs
 
@@ -356,6 +358,8 @@ class VocabularyTree(vtapi.VocabularyTree):
 
         for vec in doc.vectors:
             self._search_leaf(tx, nodes_cache, root, vec, _on_visit_fn)
+
+        return visited_leafs
 
     def _update_visited_leaf(
         self,
@@ -422,6 +426,7 @@ class VocabularyTree(vtapi.VocabularyTree):
 
         return query_tfs
 
+    # pylint: disable-next=too-many-arguments
     def _search_leaf(
         self,
         tx: any,
@@ -454,7 +459,7 @@ class VocabularyTree(vtapi.VocabularyTree):
                 min_dist = dist
                 dest = child
 
-        self._search_leaf(dest, vec)
+        self._search_leaf(tx, nodes_cache, dest, vec, on_visit_fn)
 
     def _is_leaf(self, node: vtmodel.Node) -> bool:
         return len(node.children) == 0
