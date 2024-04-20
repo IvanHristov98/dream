@@ -50,6 +50,9 @@ class VocabularyTree(ABC):
     def try_training(self) -> bool:
         raise NotImplementedError("try_training is not implemented")
 
+    def try_populate_tree(self) -> bool:
+        raise NotImplementedError("try_populate_tree is not implemented")
+
     def try_replace_blue_tree(self) -> None:
         raise NotImplementedError("try_training is not implemented")
 

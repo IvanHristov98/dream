@@ -33,11 +33,14 @@ def sample_im_metadata(
 
 
 def _get_unsampled_im_count(pg_tx: psycopg.Cursor, tree_id: uuid.UUID, doc_store: str) -> int:
-    pg_tx.execute("""SELECT COUNT(*) FROM image_metadata im
+    pg_tx.execute(
+        """SELECT COUNT(*) FROM image_metadata im
         WHERE im.id NOT IN (
             SELECT im_id FROM image_metadata_sample_log imsl
             WHERE imsl.im_id=im.id AND imsl.tree_id=%s AND imsl.doc_store=%s
-        )""", (tree_id, doc_store))
+        )""",
+        (tree_id, doc_store),
+    )
 
     row = pg_tx.fetchone()
     return row[0]
