@@ -1,5 +1,6 @@
 from typing import List
 import abc
+import uuid
 
 import cv2 as cv
 
@@ -17,6 +18,7 @@ class MatrixLoader(abc.ABC):
 class ImageStore(vtapi.DocStore):
     _SIFT_DESCRIPTOR_DIM = 128
     _MAX_FEATURES_PER_IM = 150
+    _DOC_STORE = "images"
 
     _sift: cv.SIFT
     _mat_loader: MatrixLoader
@@ -27,10 +29,10 @@ class ImageStore(vtapi.DocStore):
         self._sift = cv.SIFT_create(self._MAX_FEATURES_PER_IM)
         self._mat_loader = mat_loader
 
-    def get_documents(self, tx: any, sample_size: int) -> List[vtapi.Document]:
+    def sample_next_documents(self, tx: any, sample_size: int, tree_id: uuid.UUID) -> List[vtapi.Document]:
         pg_tx = dreampg.to_tx(tx)
 
-        ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size)
+        ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size, tree_id, self._DOC_STORE)
         docs: List[vtapi.Document] = []
 
         for im in ims:

@@ -29,13 +29,15 @@ class TrainController:
         self._ims_vtree = ims_vtree
 
     def run(self) -> None:
-        self._start_train_workers(self._captions_vtree)
-        self._run_tree_replacers(self._captions_vtree)
+        self._run_train_worker(self._captions_vtree)
+        self._run_tree_replacer(self._captions_vtree)
+        self._run_populator(self._captions_vtree)
 
-        self._start_train_workers(self._ims_vtree)
-        self._run_tree_replacers(self._ims_vtree)
+        self._run_train_worker(self._ims_vtree)
+        self._run_tree_replacer(self._ims_vtree)
+        self._run_populator(self._ims_vtree)
 
-    def _start_train_workers(self, vtree: vtapi.VocabularyTree) -> None:
+    def _run_train_worker(self, vtree: vtapi.VocabularyTree) -> None:
         def train(vtree: vtapi.VocabularyTree) -> None:
             while True:
                 worked = True
@@ -47,11 +49,21 @@ class TrainController:
         thread = Thread(target=train, args=(vtree,))
         thread.start()
 
-    def _run_tree_replacers(self, vtree: vtapi.VocabularyTree) -> None:
+    def _run_tree_replacer(self, vtree: vtapi.VocabularyTree) -> None:
         def replace_tree(vtree: vtapi.VocabularyTree) -> None:
             while True:
                 vtree.try_replace_blue_tree()
                 time.sleep(self._REPLACE_TREE_SLEEP_DURATION)
 
         thread = Thread(target=replace_tree, args=(vtree,))
+        thread.start()
+
+    def _run_populator(self, vtree: vtapi.VocabularyTree) -> None:
+        def populate(vtree: vtapi.VocabularyTree) -> None:
+            while True:
+                worked = True
+                while worked:
+                    worked = vtree.try_populate_tree()
+
+        thread = Thread(target=populate, args=(vtree,))
         thread.start()
