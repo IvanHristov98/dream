@@ -1,6 +1,6 @@
 import abc
 import uuid
-from typing import Callable, List, Optional, Dict, Tuple
+from typing import Callable, List, Optional, Dict, Tuple, Set
 import math
 import logging
 
@@ -117,11 +117,12 @@ class VocabularyTree(vtapi.VocabularyTree):
 
     _START_DEPTH = 0
     # Recommended values from the paper are 10 clusters and 6 levels.
-    _NUM_CLUSTERS = 8
-    _NUM_LEVELS = 4
-    _MIN_SAMPLES = 50
+    _NUM_CLUSTERS = 10
+    _NUM_LEVELS = 6
+    _MIN_SAMPLES = 100
     # TODO: Fine tune tf_idf threshold.
     _TF_IDF_THRESHOLD = 0.05
+    _POPULATE_BATCH_SIZE = 100
 
     _tx_store: TxStore
     _doc_store: vtapi.DocStore
@@ -146,8 +147,11 @@ class VocabularyTree(vtapi.VocabularyTree):
 
     def start_training(self, sample_size: int) -> None:
         """
-        train loads a subset of all documents in the db and adds a root node for a vocabulary tree.
+        start_training loads a subset of all documents in the db and adds a root node for a vocabulary tree.
+
         It might not use all documents to train the vocabulary tree due to memory constraints.
+        The rest of the documents would be populated into the tree slowly over time after initial training.
+
         If there are more than 2 trees it fails (one green and one blue).
         """
 
@@ -159,7 +163,7 @@ class VocabularyTree(vtapi.VocabularyTree):
             root_vec = np.zeros((feature_dim,), dtype=np.float32)
             root = vtmodel.Node(uuid.uuid4(), tree_id, self._START_DEPTH, root_vec)
 
-            docs = self._doc_store.get_documents(tx, sample_size)
+            docs = self._doc_store.sample_next_documents(tx, sample_size, root.tree_id)
             logging.info("fetched %d documents", len(docs))
             root.features = self._docs_to_features(docs)
 
@@ -304,6 +308,82 @@ class VocabularyTree(vtapi.VocabularyTree):
 
         self._tx_store.in_tx(_cb)
 
+    def try_populate_tree(self) -> bool:
+        """
+        try_populate_tree finds the root of the currently active tree and adds documents to it.
+        If useful Voronoi cells are split.
+        """
+        worked = False
+
+        def _cb(tx: any) -> None:
+            nonlocal worked
+
+            root = self._tree_store.get_root(tx)
+            if root is None:
+                return
+
+            docs = self._doc_store.sample_next_documents(tx, self._POPULATE_BATCH_SIZE, root.tree_id)
+            nodes_cache: Dict[uuid.UUID, vtmodel.Node] = {}
+            visited_leafs: Set[uuid.UUID] = set()
+
+            for doc in docs:
+                self._try_populate_doc(tx, nodes_cache, visited_leafs, doc)
+
+            for visited_leaf in visited_leafs:
+                self._update_visited_leaf(tx, nodes_cache, nodes_cache[visited_leaf])
+
+            worked = True
+
+        self._tx_store.in_tx(_cb)
+        return worked
+
+    def _try_populate_doc(
+        self,
+        tx: any,
+        nodes_cache: Dict[uuid.UUID, vtmodel.Node],
+        visited_leafs: Set[uuid.UUID],
+        root: vtmodel.Node,
+        doc: vtapi.Document,
+    ) -> None:
+        def _on_visit_fn(node: vtmodel.Node, vec: np.ndarray) -> None:
+            nonlocal visited_leafs
+
+            if not self._is_leaf(node):
+                return
+
+            node.features.append(vtmodel.Feature(doc.id, vec))
+            visited_leafs.add(node.id)
+
+        for vec in doc.vectors:
+            self._search_leaf(tx, nodes_cache, root, vec, _on_visit_fn)
+
+    def _update_visited_leaf(
+        self,
+        tx: any,
+        visited_leaf: vtmodel.Node,
+    ) -> None:
+        children = self._get_children(visited_leaf)
+        if children is None:
+            # Only save the added features.
+            self._tree_store.update_node(tx, visited_leaf)
+            return
+
+        # Case when the leaf has become too big and needs to be split.
+        self._split_leaf(tx, visited_leaf, children)
+
+    def _split_leaf(self, tx: any, visited_leaf: vtmodel.Node, children: Dict[int, vtmodel.Node]) -> None:
+        self._assign_children(visited_leaf, children)
+
+        # TODO: Handle corner case when one of the children could also be broken down into children.
+        # Currently it is assumed that it has a negligible effect.
+        for child in children.values():
+            self._tree_store.add_node(tx, child)
+
+            doc_frequencies = self._get_document_frequencies(child)
+            self._freq_store.set_term(tx, child.id, doc_frequencies, visited_leaf.tree_id)
+
+        self._tree_store.update_node(tx, visited_leaf)
+
     def query(self, doc: vtapi.Document, n: int) -> List[uuid.UUID]:
         """
         query finds the n most similar docs to the provided one and returns their IDs.
@@ -327,47 +407,57 @@ class VocabularyTree(vtapi.VocabularyTree):
 
     def _find_term_frequencies(self, tx: any, doc: vtapi.Document, root: vtmodel.Node) -> Dict[uuid.UUID, int]:
         query_tfs: Dict[uuid.UUID, int] = {}
-        nodes: Dict[uuid.UUID, vtmodel.Node] = {}
+        nodes_cache: Dict[uuid.UUID, vtmodel.Node] = {}
 
-        def _search_leaf(node: Optional[vtmodel.Node], vec: np.ndarray) -> None:
+        def _on_visit_fn(node: vtmodel.Node, _: np.ndarray) -> None:
             nonlocal query_tfs
-            nonlocal nodes
-            nonlocal tx
 
             if node.id not in query_tfs:
                 query_tfs[node.id] = 0
 
             query_tfs[node.id] += 1
 
-            if len(node.children) == 0:
-                # We've found a leaf.
-                return
-
-            dest = None
-            min_dist = -1.0
-
-            for child_id in node.children:
-                # TODO: Caching of nodes for a single tx should probably be implemented in the store.
-                if child_id in nodes:
-                    child = nodes[child_id]
-                else:
-                    child = self._tree_store.get_node(tx, child_id)
-                    if child is None:
-                        raise vtapi.ErrNodeNotFound(f"failed getting child node {child_id}")
-
-                    nodes[child_id] = child
-
-                dist = np.linalg.norm(vec - child.vec)
-                if min_dist < 0 or min_dist > dist:
-                    min_dist = dist
-                    dest = child
-
-            _search_leaf(dest, vec)
-
         for vec in doc.vectors:
-            _search_leaf(root, vec)
+            self._search_leaf(tx, nodes_cache, root, vec, _on_visit_fn)
 
         return query_tfs
+
+    def _search_leaf(
+        self,
+        tx: any,
+        nodes_cache: Dict[uuid.UUID, vtmodel.Node],
+        node: Optional[vtmodel.Node],
+        vec: np.ndarray,
+        on_visit_fn: Callable[[vtmodel.Node, np.ndarray], None],
+    ) -> None:
+        on_visit_fn(node, vec)
+
+        if self._is_leaf(node):
+            # We've found a leaf.
+            return
+
+        dest = None
+        min_dist = -1.0
+
+        for child_id in node.children:
+            if child_id in nodes_cache:
+                child = nodes_cache[child_id]
+            else:
+                child = self._tree_store.get_node(tx, child_id)
+                if child is None:
+                    raise vtapi.ErrNodeNotFound(f"failed getting child node {child_id}")
+
+                nodes_cache[child_id] = child
+
+            dist = np.linalg.norm(vec - child.vec)
+            if min_dist < 0 or min_dist > dist:
+                min_dist = dist
+                dest = child
+
+        self._search_leaf(dest, vec)
+
+    def _is_leaf(self, node: vtmodel.Node) -> bool:
+        return len(node.children) == 0
 
     def _find_term_scores(
         self,

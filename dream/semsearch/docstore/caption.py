@@ -1,4 +1,5 @@
 from typing import List
+import uuid
 
 from sentence_transformers import SentenceTransformer
 
@@ -18,7 +19,7 @@ class CaptionStore(vtapi.DocStore):
 
         self._transformer = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
-    def get_documents(self, tx: any, sample_size: int) -> List[vtapi.Document]:
+    def sample_next_documents(self, tx: any, sample_size: int, tree_id: uuid.UUID) -> List[vtapi.Document]:
         pg_tx = dreampg.to_tx(tx)
 
         ims: List[model.Image] = sample_im_metadata(pg_tx, sample_size)

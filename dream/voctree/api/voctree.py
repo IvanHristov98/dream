@@ -32,7 +32,11 @@ class Document:
 
 
 class DocStore(ABC):
-    def get_documents(self, tx: any, sample_size: int) -> List[Document]:
+    def sample_next_documents(self, tx: any, sample_size: int, tree_id: uuid.UUID) -> List[Document]:
+        """
+        sample_next_documents samples a set of documents for a given tree.
+        If documents are previously sampled for a given tree, then they won't be sampled for it again.
+        """
         raise NotImplementedError("")
 
     def get_feature_dim(self) -> int:
