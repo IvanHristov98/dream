@@ -15,6 +15,9 @@ def sample_im_metadata(
 ) -> List[model.Image]:
     im_count = _get_unsampled_im_count(pg_tx, tree_id, doc_store)
 
+    if im_count == 0:
+        return []
+
     if im_count < sample_size:
         logging.warning(
             "sample_size (%d) is greater than training dataset size (%d)",
