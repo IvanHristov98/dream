@@ -323,6 +323,9 @@ class VocabularyTree(vtapi.VocabularyTree):
                 return
 
             docs = self._doc_store.sample_next_documents(tx, self._POPULATE_BATCH_SIZE, root.tree_id)
+            if len(docs) == 0:
+                return
+
             nodes_cache: Dict[uuid.UUID, vtmodel.Node] = {}
             visited_leafs: Set[uuid.UUID] = set()
 
