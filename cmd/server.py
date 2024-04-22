@@ -18,7 +18,7 @@ def main() -> None:
     dreamlogging.configure_logging()
     cfg = _parse_cfg()
 
-    captions_vtree, ims_vtree, _ = semsearch.new_svc(cfg.im_store_path)
+    captions_vtree, ims_vtree, semsearch_svc = semsearch.new_svc(cfg.im_store_path)
 
     train_ctl = controller.TrainController(cfg.train_cfg, captions_vtree, ims_vtree)
     train_ctl.run()
@@ -26,6 +26,8 @@ def main() -> None:
     app = flask.Flask(__name__)
 
     restapi.register_train_endpoint(app, captions_vtree, ims_vtree)
+    restapi.register_semsearch_endpoint(app, semsearch_svc)
+
     app.run(host="0.0.0.0", port=5000, debug=False)
 
 

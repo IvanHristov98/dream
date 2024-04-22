@@ -1,5 +1,6 @@
 import abc
-from typing import Callable
+from typing import Callable, List
+import uuid
 
 import dream.voctree.api as vtapi
 from dream import model
@@ -18,11 +19,17 @@ class ImageStore(abc.ABC):
         raise NotImplementedError("")
 
 
+class DocumentFactory(abc.ABC):
+    def from_caption(self, doc_id: uuid.UUID, captions: List[str]) -> vtapi.Document:
+        raise NotImplementedError("")
+
+
 class SemSearchService:
     _captions_vtree: vtapi.VocabularyTree
     _ims_vtree: vtapi.VocabularyTree
     _im_store: ImageStore
     _store: Store
+    _doc_factory: DocumentFactory
 
     def __init__(
         self,
@@ -30,11 +37,13 @@ class SemSearchService:
         ims_vtree: vtapi.VocabularyTree,
         im_store: ImageStore,
         store: Store,
+        doc_factory: DocumentFactory,
     ) -> None:
         self._captions_vtree = captions_vtree
         self._ims_vtree = ims_vtree
         self._im_store = im_store
         self._store = store
+        self._doc_factory = doc_factory
 
     def seed_image(self, im: model.Image) -> None:
         self._im_store.store_matrix(im)
@@ -47,5 +56,8 @@ class SemSearchService:
 
         self._store.atomically(_cb)
 
-    # def query(self, sentence: str, n: int) -> List[uuid.UUID]:
-    #     return []
+    def query(self, caption: str, n: int) -> List[uuid.UUID]:
+        doc = self._doc_factory.from_caption(doc_id=uuid.uuid4(), captions=[caption])
+        doc_ids = self._captions_vtree.query(doc, n)
+
+        return doc_ids
