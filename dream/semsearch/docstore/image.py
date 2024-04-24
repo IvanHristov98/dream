@@ -48,7 +48,11 @@ class ImageStore(vtapi.DocStore):
 
         (_, descriptor) = self._sift.detectAndCompute(mat_gray, None)
 
-        vecs = list(descriptor)
+        if descriptor is None:
+            vecs = []
+        else:
+            vecs = list(descriptor)
+
         return vtapi.Document(doc_id=im_with_mat.id, vectors=vecs)
 
     def get_feature_dim(self) -> int:

@@ -65,5 +65,7 @@ class TrainController:
                 while worked:
                     worked = vtree.try_populate_tree()
 
+                time.sleep(self._TRAIN_SLEEP_DURATION)
+
         thread = Thread(target=populate, args=(vtree,))
         thread.start()
