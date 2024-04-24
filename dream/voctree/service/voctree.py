@@ -512,7 +512,7 @@ class VocabularyTree(vtapi.VocabularyTree):
         doc_vecs: Dict[uuid.UUID, np.ndarray] = {}
         term_ids = list(term_scores.keys())
 
-        for i in range(term_ids):
+        for i in range(len(term_ids)):
             for doc_id, tf_idf in term_scores[term_ids[i]].items():
                 if doc_id not in doc_vecs:
                     doc_vecs[doc_id] = np.zeros((len(term_ids),), dtype=np.float32)
@@ -520,7 +520,7 @@ class VocabularyTree(vtapi.VocabularyTree):
                 doc_vecs[doc_id][i] = tf_idf
 
         query_doc_vec = doc_vecs[query_doc.id]
-        norm_query_doc_vec = query_doc_vec / np.linalg.norm(query_doc_vec, ord="1")
+        norm_query_doc_vec = query_doc_vec / np.linalg.norm(query_doc_vec, ord=1)
         doc_scores: List[Tuple[uuid.UUID, float]] = []
 
         for doc_id, doc_vec in doc_vecs.items():
@@ -529,13 +529,20 @@ class VocabularyTree(vtapi.VocabularyTree):
 
             # The authors of the vocabulary tree paper advise us to use 1st norm.
             # See https://people.eecs.berkeley.edu/~yang/courses/cs294-6/papers/nister_stewenius_cvpr2006.pdf.
-            norm_doc_vec = doc_vec / np.linalg.norm(doc_vec, ord="1")
+            norm_doc_vec = doc_vec / np.linalg.norm(doc_vec, ord=1)
 
-            doc_score = np.linalg.norm(norm_query_doc_vec - norm_doc_vec, ord="1")
+            doc_score = np.linalg.norm(norm_query_doc_vec - norm_doc_vec, ord=1)
             doc_scores.append((doc_id, doc_score))
 
-        def _compare_fn(a, b):
-            return a[1] - b[1]
+        def _compare_fn(a):
+            return a[1]
 
-        sorted(doc_scores, _compare_fn)
-        return doc_scores[: min(n, len(doc_scores))]
+        doc_scores = sorted(doc_scores, key=_compare_fn)
+
+        doc_scores = doc_scores[: min(n, len(doc_scores))]
+
+        doc_ids = []
+        for doc_score in doc_scores:
+            doc_ids.append(doc_score[0])
+
+        return doc_ids

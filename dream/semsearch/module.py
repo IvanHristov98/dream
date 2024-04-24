@@ -41,6 +41,16 @@ def new_svc(
     im_store = imstore.ImageStore(imstore_ims_path)
     semsearch_store = semsearchstore.Store(pool)
 
-    sem_search_svc = semsearchservice.SemSearchService(captions_vtree, ims_vtree, im_store, semsearch_store)
+    caption_feature_extractor = docstore.CaptionFeatureExtractor()
+    im_feature_extractor = docstore.ImageFeatureExtractor()
+
+    sem_search_svc = semsearchservice.SemSearchService(
+        captions_vtree,
+        ims_vtree,
+        im_store,
+        semsearch_store,
+        caption_feature_extractor,
+        im_feature_extractor,
+    )
 
     return (captions_vtree, ims_vtree, sem_search_svc)

@@ -2,6 +2,7 @@ from pathlib import Path
 import uuid
 
 import cv2 as cv
+import numpy as np
 
 import dream.semsearch.service as semsearchservice
 from dream import model
@@ -22,6 +23,10 @@ class ImageStore(semsearchservice.ImageStore):
     def store_matrix(self, im: model.Image) -> None:
         im_path = _im_path(self._ims_path, im.id)
         cv.imwrite(str(im_path.resolve()), im.mat)
+
+    def get_matrix(self, im_id: uuid.UUID) -> np.ndarray:
+        im_path = _im_path(self._ims_path, im_id)
+        return cv.imread(str(im_path))
 
 
 class MatrixLoader(imdocstore.MatrixLoader):
