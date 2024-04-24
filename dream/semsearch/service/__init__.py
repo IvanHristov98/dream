@@ -2,5 +2,6 @@ from dream.semsearch.service.service import (
     SemSearchService,  # noqa
     Store,  # noqa
     ImageStore,  # noqa
-    DocumentFactory,  # noqa
+    ImageFeatureExtractor,  # noqa
+    CaptionFeatureExtractor,
 )

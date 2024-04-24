@@ -8,7 +8,6 @@ from dream.voctree import service as vtservice
 from dream.voctree import store as vtstore
 from dream.semsearch import imstore
 from dream.semsearch import store as semsearchstore
-from dream.semsearch import docfactory
 
 
 def new_svc(
@@ -18,9 +17,7 @@ def new_svc(
 
     tx_store = vtstore.TxStore(pool)
 
-    doc_factory = docfactory.DocumentFactory()
-
-    captions_doc_store = docstore.CaptionStore(doc_factory)
+    captions_doc_store = docstore.CaptionStore()
 
     captions_tables = vtstore.TableConfig("captions")
     captions_vt_store = vtstore.VocabularyTreeStore(captions_tables)
@@ -44,8 +41,16 @@ def new_svc(
     im_store = imstore.ImageStore(imstore_ims_path)
     semsearch_store = semsearchstore.Store(pool)
 
+    caption_feature_extractor = docstore.CaptionFeatureExtractor()
+    im_feature_extractor = docstore.ImageFeatureExtractor()
+
     sem_search_svc = semsearchservice.SemSearchService(
-        captions_vtree, ims_vtree, im_store, semsearch_store, doc_factory
+        captions_vtree,
+        ims_vtree,
+        im_store,
+        semsearch_store,
+        caption_feature_extractor,
+        im_feature_extractor,
     )
 
     return (captions_vtree, ims_vtree, sem_search_svc)

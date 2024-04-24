@@ -537,7 +537,7 @@ class VocabularyTree(vtapi.VocabularyTree):
         def _compare_fn(a):
             return a[1]
 
-        sorted(doc_scores, key=_compare_fn)
+        doc_scores = sorted(doc_scores, key=_compare_fn)
 
         doc_scores = doc_scores[: min(n, len(doc_scores))]
 

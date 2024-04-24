@@ -2,6 +2,7 @@ from typing import List
 import uuid
 
 from sentence_transformers import SentenceTransformer
+import numpy as np
 
 import dream.voctree.api as vtapi
 import dream.pg as dreampg
@@ -14,14 +15,12 @@ class CaptionStore(vtapi.DocStore):
     _DIM_SIZE = 384
     _DOC_STORE = "captions"
 
-    _doc_factory: service.DocumentFactory
-
     _transformer: SentenceTransformer
 
-    def __init__(self, doc_factory: service.DocumentFactory) -> None:
+    def __init__(self) -> None:
         super().__init__()
 
-        self._doc_factory = doc_factory
+        self._transformer = _new_transformer()
 
     def sample_next_documents(self, tx: any, sample_size: int, tree_id: uuid.UUID) -> List[vtapi.Document]:
         pg_tx = dreampg.to_tx(tx)
@@ -30,7 +29,8 @@ class CaptionStore(vtapi.DocStore):
         docs: List[vtapi.Document] = []
 
         for im in ims:
-            doc = self._doc_factory.from_caption(im.id, im.captions)
+            vectors = self._transformer.encode(im.captions)
+            doc = vtapi.Document(im.id, vectors)
 
             docs.append(doc)
 
@@ -38,3 +38,19 @@ class CaptionStore(vtapi.DocStore):
 
     def get_feature_dim(self) -> int:
         return self._DIM_SIZE
+
+
+class CaptionFeatureExtractor(service.CaptionFeatureExtractor):
+    _transformer: SentenceTransformer
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._transformer = _new_transformer()
+
+    def extract(self, caption: str) -> List[np.ndarray]:
+        return self._transformer.encode([caption])
+
+
+def _new_transformer() -> SentenceTransformer:
+    return SentenceTransformer("paraphrase-MiniLM-L6-v2")
