@@ -27,6 +27,7 @@ def main() -> None:
 
     restapi.register_train_endpoint(app, captions_vtree, ims_vtree)
     restapi.register_images_endpoint(app, semsearch_svc)
+    restapi.register_image_endpoint(app, semsearch_svc)
 
     app.run(host="0.0.0.0", port=5000, debug=False)
 

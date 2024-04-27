@@ -1,6 +1,7 @@
 import abc
 from typing import Callable, List
 import uuid
+from pathlib import Path
 
 import numpy as np
 
@@ -21,6 +22,9 @@ class ImageStore(abc.ABC):
         raise NotImplementedError("")
 
     def get_matrix(self, _: uuid.UUID) -> np.ndarray:
+        raise NotImplementedError("")
+
+    def get_im_path(self, im_id: uuid.UUID) -> Path:
         raise NotImplementedError("")
 
 
@@ -91,3 +95,6 @@ class SemSearchService:
         query_caption_doc = vtapi.Document(uuid.uuid4(), vectors=caption_vecs)
 
         return self._captions_vtree.query(query_caption_doc, n)
+
+    def get_im_path(self, im_id: uuid.UUID) -> Path:
+        return self._im_store.get_im_path(im_id)

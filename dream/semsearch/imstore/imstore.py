@@ -28,6 +28,9 @@ class ImageStore(semsearchservice.ImageStore):
         im_path = _im_path(self._ims_path, im_id)
         return cv.imread(str(im_path))
 
+    def get_im_path(self, im_id: uuid.UUID) -> Path:
+        return _im_path(self._ims_path, im_id)
+
 
 class MatrixLoader(imdocstore.MatrixLoader):
     _ims_path: Path
