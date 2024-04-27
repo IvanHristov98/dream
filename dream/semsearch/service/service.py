@@ -1,5 +1,5 @@
 import abc
-from typing import Callable, List, Optional
+from typing import Callable, List
 import uuid
 
 import numpy as np
@@ -35,7 +35,7 @@ class ImageFeatureExtractor(abc.ABC):
 
 
 class SemSearchService:
-    _N_NEAREST_CAPTIONS = 10
+    _N_NEAREST_CAPTIONS = 5
 
     _captions_vtree: vtapi.VocabularyTree
     _ims_vtree: vtapi.VocabularyTree
@@ -44,6 +44,7 @@ class SemSearchService:
     _caption_feature_extractor: CaptionFeatureExtractor
     _im_feature_extractor: ImageFeatureExtractor
 
+    # pylint: disable-next=too-many-arguments
     def __init__(
         self,
         captions_vtree: vtapi.VocabularyTree,
@@ -71,11 +72,8 @@ class SemSearchService:
 
         self._store.atomically(_cb)
 
-    def query(self, caption: str, n: int) -> List[uuid.UUID]:
-        caption_vecs = self._caption_feature_extractor.extract(caption)
-        query_caption_doc = vtapi.Document(uuid.uuid4(), vectors=caption_vecs)
-
-        nearest_doc_ids = self._captions_vtree.query(query_caption_doc, self._N_NEAREST_CAPTIONS)
+    def query_all_ims(self, caption: str, n: int) -> List[uuid.UUID]:
+        nearest_doc_ids = self.query_labeled_ims(caption, self._N_NEAREST_CAPTIONS)
 
         vecs = []
 
@@ -87,3 +85,9 @@ class SemSearchService:
 
         query_im_doc = vtapi.Document(uuid.uuid4(), vecs)
         return self._ims_vtree.query(query_im_doc, n)
+
+    def query_labeled_ims(self, caption: str, n: int) -> List[uuid.UUID]:
+        caption_vecs = self._caption_feature_extractor.extract(caption)
+        query_caption_doc = vtapi.Document(uuid.uuid4(), vectors=caption_vecs)
+
+        return self._captions_vtree.query(query_caption_doc, n)
