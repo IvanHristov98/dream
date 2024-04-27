@@ -512,8 +512,8 @@ class VocabularyTree(vtapi.VocabularyTree):
         doc_vecs: Dict[uuid.UUID, np.ndarray] = {}
         term_ids = list(term_scores.keys())
 
-        for i in range(len(term_ids)):
-            for doc_id, tf_idf in term_scores[term_ids[i]].items():
+        for i, term_id in enumerate(term_ids):
+            for doc_id, tf_idf in term_scores[term_id].items():
                 if doc_id not in doc_vecs:
                     doc_vecs[doc_id] = np.zeros((len(term_ids),), dtype=np.float32)
 
