@@ -16,6 +16,9 @@ class Store(abc.ABC):
     def add_image_metadata(self, tx: any, im: model.Image) -> None:
         raise NotImplementedError("")
 
+    def get_image_metadata(self, tx: any, im_id: uuid.UUID) -> model.Image:
+        raise NotImplementedError("")
+
 
 class ImageStore(abc.ABC):
     def store_matrix(self, _: model.Image) -> None:
@@ -98,3 +101,14 @@ class SemSearchService:
 
     def get_im_path(self, im_id: uuid.UUID) -> Path:
         return self._im_store.get_im_path(im_id)
+
+    def get_im_metadata(self, im_id: uuid.UUID) -> model.Image:
+        im: model.Image = None
+
+        def _cb(tx: any) -> None:
+            nonlocal im
+            im = self._store.get_image_metadata(tx, im_id)
+
+        self._store.atomically(_cb)
+
+        return im
