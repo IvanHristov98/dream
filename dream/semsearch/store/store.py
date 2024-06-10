@@ -18,10 +18,7 @@ class Store(semsearchservice.Store):
         self._pool = pool
 
     def atomically(self, cb: Callable[[any], None]) -> None:
-        # conn wraps a single transaction.
-        with self._pool.connection() as conn:
-            cur = conn.cursor()
-            cb(cur)
+        dreampg.with_tx(self._pool, cb)
 
     def add_image_metadata(self, tx: any, im: model.Image) -> None:
         persisted_captions = json.dumps(im.captions)
