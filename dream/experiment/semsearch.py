@@ -1,7 +1,9 @@
 import time
 from typing import List, Callable, NamedTuple, Dict
 import uuid
+
 from tqdm import tqdm
+from sklearn.metrics.pairwise import cosine_similarity
 
 from dream.experiment import fixture
 from dream.experiment import model as experimentmodel
@@ -44,27 +46,48 @@ def _run_semsearch_experiment(
     total_precision = 0.0
     total_ndcg = 0.0
     total_duration_sec = 0.0
+    test_captions_count = 0
 
-    for i in tqdm(range(len(fixture.captions))):
-        caption = fixture.captions[i]
+    test_captions = list(fixture.ideal_caption_relevances.keys())
+
+    for i in tqdm(range(len(test_captions))):
+        test_caption = test_captions[i]
 
         start = time.time()
-        im_ids = search_fn(caption, n)
+        im_ids = search_fn(test_caption, n)
         total_duration_sec += time.time() - start
 
         rel_scores = []
 
-        for im_id in im_ids:
+        for rank, im_id in enumerate(im_ids):
             im = get_im_metadata_fn(im_id)
-            rel_score = experimentmodel.relevance_score(im, caption, encode_caption_fn)
+            rel_score = relevance_score(im, rank, test_caption, encode_caption_fn)
 
             rel_scores.append(rel_score)
 
         total_precision += experimentmodel.precision(rel_scores)
         total_ndcg += experimentmodel.ndcg(rel_scores)
 
+        test_captions_count += 1
+
     return ExperimentResult(
-        mean_precision=total_precision / len(fixture.captions),
-        mean_ndcg=total_ndcg / len(fixture.captions),
-        mean_duration_sec=total_duration_sec / len(fixture.captions),
+        mean_precision=total_precision / test_captions_count,
+        mean_ndcg=total_ndcg / test_captions_count,
+        mean_duration_sec=total_duration_sec / test_captions_count,
     )
+
+
+def relevance_score(
+    im: model.Image, rank: int, caption: str, encode_caption_fn: experimentmodel.EncodeCaptionFn
+) -> float:
+    xs = encode_caption_fn(caption)
+    ys = experimentmodel.im_caption_codes(im, encode_caption_fn)
+
+    similarities = cosine_similarity(xs, ys)
+
+    ideal_similarity = fixture.ideal_caption_relevances[caption][rank]
+
+    if ideal_similarity <= 0:
+        return 0.0
+
+    return experimentmodel.max_similarity(similarities) / ideal_similarity

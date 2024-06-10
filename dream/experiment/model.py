@@ -10,25 +10,16 @@ from dream import model
 EncodeCaptionFn = Callable[[str], List[np.ndarray]]
 
 MAX_N = 20
-NS = [5]  # [1, 5, 10, MaxN]
-
-
-def relevance_score(im: model.Image, caption: str, encode_caption_fn: EncodeCaptionFn) -> float:
-    xs = encode_caption_fn(caption)
-    ys = im_caption_codes(im, encode_caption_fn)
-
-    similarities = cosine_similarity(xs, ys)
-
-    return _max_similarity(similarities)
+NS = [1, 5, 10, MAX_N]
 
 
 def relevance_score_of_codes(ys: List[np.ndarray], x: np.ndarray) -> float:
     similarities = cosine_similarity([x], ys)
 
-    return _max_similarity(similarities)
+    return max_similarity(similarities)
 
 
-def _max_similarity(similarities: np.ndarray) -> float:
+def max_similarity(similarities: np.ndarray) -> float:
     # Negative relevance scores are possible and having such should be interpreted as 0 so that
     # relevant image retrievals aren't penalized.
     return max(similarities.max(), 0)
