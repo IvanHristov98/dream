@@ -60,4 +60,7 @@ def ndcg(rel_scores: List[float]) -> float:
     for i, sorted_rel_score in enumerate(sorted_rel_scores):
         idcg += sorted_rel_score / math.log2(i + 2)
 
+    if idcg == 0:
+        return 0
+
     return dcg / idcg

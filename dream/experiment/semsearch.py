@@ -12,6 +12,7 @@ from dream import model
 
 
 _LABELED_ONLY = "labeled_only"
+_ALL = "all"
 
 
 class ExperimentResult(NamedTuple):
@@ -29,6 +30,14 @@ def run_semsearch_experiments(
     for n in experimentmodel.NS:
         results[f"{_LABELED_ONLY}_{n}"] = _run_semsearch_experiment(
             semsearch_svc.query_labeled_ims,
+            semsearch_svc.get_im_metadata,
+            n,
+            encode_caption_fn,
+        )
+
+    for n in experimentmodel.NS:
+        results[f"{_ALL}_{n}"] = _run_semsearch_experiment(
+            semsearch_svc.query_all_ims,
             semsearch_svc.get_im_metadata,
             n,
             encode_caption_fn,

@@ -108,7 +108,7 @@ class SemSearchService:
 
             vecs += sampled_im_vecs
 
-        sampled_vecs = random.sample(vecs, int(total_vecs_count/len(nearest_doc_ids)))
+        sampled_vecs = random.sample(vecs, int(total_vecs_count / len(nearest_doc_ids)))
 
         return vtapi.Document(uuid.uuid4(), sampled_vecs)
 
