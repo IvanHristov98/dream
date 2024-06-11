@@ -57,3 +57,7 @@ seed:
 		-coco2014-captions-path="$(PWD)/data/coco2014/captions_train2014.json" \
 		-coco2014-ims-path="$(PWD)/data/coco2014/train2014" \
 		-imstore-ims-path="$(PWD)/tmp/imstore"
+
+run-experiment:
+	@IM_STORE_PATH="$(PWD)/tmp/imstore" \
+		python3 cmd/experiment.py
