@@ -1,6 +1,8 @@
 import abc
 from typing import Callable, List
 import uuid
+import random
+import math
 from pathlib import Path
 
 import numpy as np
@@ -82,15 +84,7 @@ class SemSearchService:
     def query_all_ims(self, caption: str, n: int) -> List[uuid.UUID]:
         nearest_doc_ids = self.query_labeled_ims(caption, self._N_NEAREST_CAPTIONS)
 
-        vecs = []
-
-        for doc_id in nearest_doc_ids:
-            mat = self._im_store.get_matrix(doc_id)
-
-            im_vecs = self._im_feature_extractor.extract(mat)
-            vecs += im_vecs
-
-        query_im_doc = vtapi.Document(uuid.uuid4(), vecs)
+        query_im_doc = self._create_abstract_im(nearest_doc_ids)
         return self._ims_vtree.query(query_im_doc, n)
 
     def query_labeled_ims(self, caption: str, n: int) -> List[uuid.UUID]:
@@ -98,6 +92,25 @@ class SemSearchService:
         query_caption_doc = vtapi.Document(uuid.uuid4(), vectors=caption_vecs)
 
         return self._captions_vtree.query(query_caption_doc, n)
+
+    def _create_abstract_im(self, nearest_doc_ids: List[uuid.UUID]) -> vtapi.Document:
+        vecs = []
+        total_vecs_count = 0
+
+        for i, doc_id in enumerate(nearest_doc_ids):
+            mat = self._im_store.get_matrix(doc_id)
+
+            im_vecs = self._im_feature_extractor.extract(mat)
+            total_vecs_count += len(im_vecs)
+
+            # Uses the same principle as normalized discounted cumulative gain.
+            sampled_im_vecs = random.sample(im_vecs, int(len(im_vecs) / math.log2(i + 2)))
+
+            vecs += sampled_im_vecs
+
+        sampled_vecs = random.sample(vecs, int(total_vecs_count/len(nearest_doc_ids)))
+
+        return vtapi.Document(uuid.uuid4(), sampled_vecs)
 
     def get_im_path(self, im_id: uuid.UUID) -> Path:
         return self._im_store.get_im_path(im_id)
